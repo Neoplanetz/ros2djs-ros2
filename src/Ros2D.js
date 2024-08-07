@@ -1,7 +1,4 @@
-/**
- * @fileOverview
- * @author Russell Toris - rctoris@wpi.edu
- */
+// import * as createjs from 'createjs-module';
 
 var ROS2D = ROS2D || {
   /**

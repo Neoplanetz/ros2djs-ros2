@@ -20,7 +20,7 @@ ROS2D.ImageMapClient = function(options) {
   EventEmitter2.call(this);
   options = options || {};
   var ros = options.ros;
-  var topic = options.topic || '/map_metadata';
+  var topic = options.topic || '/map';
   this.image = options.image;
   this.rootObject = options.rootObject || new createjs.Container();
 
@@ -31,7 +31,7 @@ ROS2D.ImageMapClient = function(options) {
   var rosTopic = new ROSLIB.Topic({
     ros : ros,
     name : topic,
-    messageType : 'nav_msgs/MapMetaData'
+    messageType : 'nav_msgs/OccupancyGrid'
   });
 
   rosTopic.subscribe(function(message) {

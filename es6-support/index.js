@@ -18,4 +18,6 @@ export * from './models/TraceShape'
 export * from './visualization/PanView'
 export * from './visualization/Viewer'
 export * from './visualization/ZoomView'
-
+export * from './visualization/LaserScan'
+export * from './visualization/Points'
+export * from './visualization/SceneNode'

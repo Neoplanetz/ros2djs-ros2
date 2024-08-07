@@ -10,6 +10,8 @@
     "EventEmitter2": true,
     "ROS2D": true,
     "ROSLIB": true,
+    "ROS3D": true,
+    "THREE": true,
     "requestAnimationFrame": true,
     "cancelAnimationFrame": true
   },
