@@ -30,6 +30,24 @@ ros2djs depends on:
 
 Checkout [CONTRIBUTING.md](CONTRIBUTING.md) for details on building.
 
+1. Install Grunt
+```bash
+sudo npm install -g grunt-cli
+sudo rm -rf ~/.npm ~/tmp
+```
+
+2. Install Grunt tasks
+```bash
+cd /path/to/ros2djs/
+npm install .
+```
+
+3. Build with Grunt
+```bash
+cd /path/to/ros2djs/
+grunt build
+```
+
 ### License
 
 ros2djs is released with a BSD license. For full terms and conditions, see the [LICENSE](LICENSE) file.

@@ -29331,6 +29331,55 @@ ZoomView.prototype.zoom = function zoom (zoom$1) {
   	this.stage.y = this.startShift.y - (this.center.y-this.startShift.y) * (this.stage.scaleY/this.startScale.y - 1);
 };
 
+/**
+ * @fileOverview
+ * @author Assistant
+ */
+
+var RotateView = function RotateView(options) {
+  	options = options || {};
+  	this.rootObject = options.rootObject;
+
+  	// get a handle to the stage
+  	if (this.rootObject instanceof createjsExports.Stage) {
+  		this.stage = this.rootObject;
+  	}
+  	else {
+  		this.stage = this.rootObject.getStage();
+  	}
+
+  	this.startAngle = 0;
+  	this.currentRotation = 0;
+};
+/**
+ * Start the rotation
+ * @param startX - the starting x position
+ * @param startY - the starting y position
+ */
+RotateView.prototype.startRotate = function startRotate (startX, startY) {
+  	// Calculate initial angle from center of stage
+  	this.startAngle = Math.atan2(startY - this.stage.y, startX - this.stage.x);
+};
+/**
+ * Rotate the view
+ * @param curX - the current x position
+ * @param curY - the current y position
+ */
+RotateView.prototype.rotate = function rotate (curX, curY) {
+  	// Calculate current angle from center of stage
+  	var currentAngle = Math.atan2(curY - this.stage.y, curX - this.stage.x);
+  	
+  	// Calculate angle difference and convert to degrees
+  	var angleDiff = (currentAngle - this.startAngle) * (180 / Math.PI);
+  	
+  	// Update rotation
+  	this.currentRotation += angleDiff;
+  	this.stage.rotation = this.currentRotation;
+  	
+  	// Update start angle for next rotation
+  	this.startAngle = currentAngle;
+};
+
 exports.ArrowShape = ArrowShape;
 exports.Grid = Grid;
 exports.ImageMap = ImageMap;
@@ -29343,6 +29392,7 @@ exports.OccupancyGridSrvClient = OccupancyGridSrvClient;
 exports.PanView = PanView;
 exports.PathShape = PathShape;
 exports.PolygonMarker = PolygonMarker;
+exports.RotateView = RotateView;
 exports.TraceShape = TraceShape;
 exports.Viewer = Viewer;
 exports.ZoomView = ZoomView;
