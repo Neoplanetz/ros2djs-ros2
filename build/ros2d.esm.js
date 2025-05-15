@@ -28306,36 +28306,39 @@ var EventEmitter2 = /*@__PURE__*/getDefaultExportFromCjs(eventemitter2Exports);
 
 var ImageMapClient = /*@__PURE__*/(function (EventEmitter2) {
   function ImageMapClient(options) {
+    var this$1$1 = this;
+
     EventEmitter2.call(this);
     options = options || {};
-    var ros = options.ros;
-    var topic = options.topic || '/map';
+    options.ros;
+    var width = options.width;
+    var height = options.height;
+    var resolution = options.resolution;
+    var position = options.position || { x: 0, y: 0, z: 0 };
+    var orientation = options.orientation || { x: 0, y: 0, z: 0, w: 1 };
+    var origin = { position: position, orientation: orientation };
     this.image = options.image;
     this.rootObject = options.rootObject || new createjsExports.Container();
 
     // create an empty shape to start with
     this.currentImage = new createjsExports.Shape();
 
-    // subscribe to the topic
-    var rosTopic = new ROSLIB.Topic({
-      ros : ros,
-      name : topic,
-      messageType : 'nav_msgs/OccupancyGrid'
+    // create message object
+    var message = {
+      width: width,
+      height: height,
+      resolution: resolution,
+      origin: origin
+    };
+
+    // create image map
+    this.currentImage = new ImageMap({
+      message: message,
+      image: this.image
     });
-
-    rosTopic.subscribe(function(message) {
-      // we only need this once
-      rosTopic.unsubscribe();
-
-      // create the image
-      this.currentImage = new ImageMap({
-        message : message,
-        image : this.image
-      });
-      this.rootObject.addChild(this.currentImage);
-
-      this.emit('change');
-    }.bind(this));
+    this.rootObject.addChild(this.currentImage);
+    // Emit the 'change' event asynchronously to ensure listeners are registered
+    setTimeout(function () { this$1$1.emit('change'); }, 0);
   }
 
   if ( EventEmitter2 ) ImageMapClient.__proto__ = EventEmitter2;

@@ -20,32 +20,33 @@ ROS2D.ImageMapClient = function(options) {
   EventEmitter2.call(this);
   options = options || {};
   var ros = options.ros;
-  var topic = options.topic || '/map';
+  var width = options.width;
+  var height = options.height;
+  var resolution = options.resolution;
+  var position = options.position || { x: 0, y: 0, z: 0 };
+  var orientation = options.orientation || { x: 0, y: 0, z: 0, w: 1 };
+  var origin = { position: position, orientation: orientation };
   this.image = options.image;
   this.rootObject = options.rootObject || new createjs.Container();
 
   // create an empty shape to start with
   this.currentImage = new createjs.Shape();
 
-  // subscribe to the topic
-  var rosTopic = new ROSLIB.Topic({
-    ros : ros,
-    name : topic,
-    messageType : 'nav_msgs/OccupancyGrid'
+  // create message object
+  var message = {
+    width: width,
+    height: height,
+    resolution: resolution,
+    origin: origin
+  };
+
+  // create image map
+  this.currentImage = new ROS2D.ImageMap({
+    message: message,
+    image: this.image
   });
-
-  rosTopic.subscribe(function(message) {
-    // we only need this once
-    rosTopic.unsubscribe();
-
-    // create the image
-    this.currentImage = new ROS2D.ImageMap({
-      message : message,
-      image : this.image
-    });
-    this.rootObject.addChild(this.currentImage);
-
-    this.emit('change');
-  }.bind(this));
+  this.rootObject.addChild(this.currentImage);
+  // Emit the 'change' event asynchronously to ensure listeners are registered
+  setTimeout(() => { this.emit('change'); }, 0);
 };
 ROS2D.ImageMapClient.prototype.__proto__ = EventEmitter2.prototype;
