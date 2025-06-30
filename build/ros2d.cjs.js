@@ -29397,8 +29397,100 @@ RotateView.prototype.rotate = function rotate (curX, curY) {
   	this.startAngle = currentAngle;
 };
 
+var Axis = /*@__PURE__*/(function (superclass) {
+  function Axis(options) {
+    options = options || {};
+    var axisLength = options.axisLength || 1.5;
+    var axisWidth = options.axisWidth || 0.05;
+    var arrowSize = options.arrowSize || 0.2;
+    var xColor = options.xColor || 'red';
+    var yColor = options.yColor || 'green';
+
+    // Create X-axis
+    var xGraphics = new createjsExports.Graphics();
+    xGraphics
+      .beginStroke(xColor)
+      .setStrokeStyle(axisWidth)
+      .moveTo(0, 0)
+      .lineTo(axisLength, 0)
+      // Arrow head for X-axis
+      .moveTo(axisLength - arrowSize, -arrowSize / 2)
+      .lineTo(axisLength, 0)
+      .lineTo(axisLength - arrowSize, arrowSize / 2);
+    var xAxis = new createjsExports.Shape(xGraphics);
+
+    // Create Y-axis
+    var yGraphics = new createjsExports.Graphics();
+    yGraphics
+      .beginStroke(yColor)
+      .setStrokeStyle(axisWidth)
+      .moveTo(0, 0)
+      .lineTo(0, -axisLength) // Negative Y because ROS2D inverts Y-axis
+      // Arrow head for Y-axis
+      .moveTo(-arrowSize / 2, -(axisLength - arrowSize))
+      .lineTo(0, -axisLength)
+      .lineTo(arrowSize / 2, -(axisLength - arrowSize));
+    var yAxis = new createjsExports.Shape(yGraphics);
+
+    // Create axis labels
+    var xLabel = new createjsExports.Text('X', '0.5px Arial', xColor);
+    xLabel.x = axisLength + 0.2;
+    xLabel.y = 0;
+    xLabel.scaleX = 0.5;
+    xLabel.scaleY = 0.5;
+
+    var yLabel = new createjsExports.Text('Y', '0.5px Arial', yColor);
+    yLabel.x = 0.2;
+    yLabel.y = -(axisLength + 0.2);
+    yLabel.scaleX = 0.5;
+    yLabel.scaleY = 0.5;
+
+    superclass.call(this);
+    this.addChild(xAxis, yAxis, xLabel, yLabel);
+  }
+
+  if ( superclass ) Axis.__proto__ = superclass;
+  Axis.prototype = Object.create( superclass && superclass.prototype );
+  Axis.prototype.constructor = Axis;
+
+  return Axis;
+}(createjsExports.Container));
+
+var GridLines = /*@__PURE__*/(function (superclass) {
+  function GridLines(options) {
+    options = options || {};
+    var gridSpacing = options.gridSpacing || 1;
+    var gridExtent = options.gridExtent || 200;
+    var gridColor = options.gridColor || 'rgba(0,0,0,0.2)';
+    var gridWidth = options.gridWidth || 0.02;
+
+    var graphics = new createjsExports.Graphics();
+    graphics.beginStroke(gridColor).setStrokeStyle(gridWidth);
+
+    // Vertical grid lines
+    for (var i = -gridExtent; i <= gridExtent; i += gridSpacing) {
+      graphics.moveTo(i, -gridExtent).lineTo(i, gridExtent);
+    }
+
+    // Horizontal grid lines
+    for (var i$1 = -gridExtent; i$1 <= gridExtent; i$1 += gridSpacing) {
+      graphics.moveTo(-gridExtent, -i$1).lineTo(gridExtent, -i$1);
+    }
+    
+    superclass.call(this, graphics);
+  }
+
+  if ( superclass ) GridLines.__proto__ = superclass;
+  GridLines.prototype = Object.create( superclass && superclass.prototype );
+  GridLines.prototype.constructor = GridLines;
+
+  return GridLines;
+}(createjsExports.Shape));
+
 exports.ArrowShape = ArrowShape;
+exports.Axis = Axis;
 exports.Grid = Grid;
+exports.GridLines = GridLines;
 exports.ImageMap = ImageMap;
 exports.ImageMapClient = ImageMapClient;
 exports.NavigationArrow = NavigationArrow;
