@@ -104,10 +104,10 @@ globalThis.ROS2D.OccupancyGrid = function FakeOccupancyGrid(options) {
   if (msg && msg.info) {
     this.width = msg.info.width * msg.info.resolution;
     this.height = msg.info.height * msg.info.resolution;
-    this.pose = new fake.ROSLIB.Pose({
+    this.pose = {
       position: msg.info.origin.position,
       orientation: msg.info.origin.orientation,
-    });
+    };
   }
 };
 globalThis.ROS2D.OccupancyGrid.prototype.__proto__ = FakeBitmap.prototype;

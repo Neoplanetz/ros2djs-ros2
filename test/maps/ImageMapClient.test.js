@@ -38,10 +38,10 @@ globalThis.ROS2D = globalThis.ROS2D ?? {};
 globalThis.ROS2D.ImageMap = function FakeImageMap(options) {
   FakeBitmap.call(this, options.image);
   var message = options.message;
-  this.pose = new fake.ROSLIB.Pose({
+  this.pose = {
     position: message.origin.position,
     orientation: message.origin.orientation,
-  });
+  };
   this.width = message.width;
   this.height = message.height;
   if (message.resolution) {
