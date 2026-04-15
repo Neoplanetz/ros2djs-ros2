@@ -17,6 +17,7 @@
  *   * rootObject (optional) - the root object to add this marker to
  */
 ROS2D.OccupancyGridSrvClient = function(options) {
+  EventEmitter.call(this);
   var that = this;
   options = options || {};
   var ros = options.ros;
@@ -48,4 +49,4 @@ ROS2D.OccupancyGridSrvClient = function(options) {
     that.emit('change', that.currentGrid);
   });
 };
-ROS2D.OccupancyGridSrvClient.prototype.__proto__ = EventEmitter2.prototype;
+Object.setPrototypeOf(ROS2D.OccupancyGridSrvClient.prototype, EventEmitter.prototype);

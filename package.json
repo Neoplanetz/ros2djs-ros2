@@ -9,7 +9,7 @@
   "dependencies": {
     "createjs-module": "^0.8.3",
     "easeljs": "^1.0.2",
-    "eventemitter2": "^6.4.0",
+    "eventemitter3": "^5.0.4",
     "roslib": "^1.0.0"
   },
   "devDependencies": {

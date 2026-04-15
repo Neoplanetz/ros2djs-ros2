@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { createFakeRoslib } from '../fakes/fakeRoslib.js';
-import EventEmitter2 from 'eventemitter2';
+import EventEmitter from 'eventemitter3';
 
 const fake = createFakeRoslib();
 globalThis.ROSLIB = fake.ROSLIB;
-globalThis.EventEmitter2 = EventEmitter2;
+globalThis.EventEmitter = EventEmitter;
 
 // PathShape calls createjs.Shape.call(this, this.graphics) — must be ES5
 // function constructor so .call(this, ...) properly sets up the instance.

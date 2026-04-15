@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { createFakeRoslib } from '../fakes/fakeRoslib.js';
-import EventEmitter2 from 'eventemitter2';
+import EventEmitter from 'eventemitter3';
 
 const fake = createFakeRoslib();
 globalThis.ROSLIB = fake.ROSLIB;
-globalThis.EventEmitter2 = EventEmitter2;
+globalThis.EventEmitter = EventEmitter;
 
 // PanView, ZoomView, and RotateView each check:
 //   if (rootObject instanceof createjs.Stage) { this.stage = rootObject; }

@@ -17,7 +17,7 @@
  *   * rootObject (optional) - the root object to add this marker to
  */
 ROS2D.ImageMapClient = function(options) {
-  EventEmitter2.call(this);
+  EventEmitter.call(this);
   options = options || {};
   var ros = options.ros;
   var width = options.width;
@@ -49,4 +49,4 @@ ROS2D.ImageMapClient = function(options) {
   // Emit the 'change' event asynchronously to ensure listeners are registered
   setTimeout(() => { this.emit('change'); }, 0);
 };
-ROS2D.ImageMapClient.prototype.__proto__ = EventEmitter2.prototype;
+Object.setPrototypeOf(ROS2D.ImageMapClient.prototype, EventEmitter.prototype);

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createFakeRoslib } from '../fakes/fakeRoslib.js';
-import EventEmitter2 from 'eventemitter2';
+import EventEmitter from 'eventemitter3';
 
 const fake = createFakeRoslib();
 
@@ -84,7 +84,7 @@ globalThis.createjs = {
   Container: FakeContainer,
 };
 
-globalThis.EventEmitter2 = EventEmitter2;
+globalThis.EventEmitter = EventEmitter;
 
 // Stub a minimal ROS2D global the source attaches itself to.
 globalThis.ROS2D = globalThis.ROS2D ?? {};

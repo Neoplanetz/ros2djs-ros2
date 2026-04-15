@@ -1,11 +1,11 @@
-import EventEmitter2 from 'eventemitter2';
+import EventEmitter from 'eventemitter3';
 
 export function createFakeRoslib() {
   const topics = [];
   const services = [];
   const publishedByTopic = new Map();
 
-  class FakeRos extends EventEmitter2 {
+  class FakeRos extends EventEmitter {
     constructor() {
       super();
       this.connected = true;
