@@ -239,7 +239,7 @@ ROS2D.PolygonMarker.prototype.splitLine = function(obj) {
     var ye = this.pointContainer.getChildAt((index+1)%numPoints).y;
     var xh = (xs+xe)/2.0;
     var yh = (ys+ye)/2.0;
-    var pos = new ROSLIB.Vector3({ x:xh, y:-yh });
+    var pos = { x: xh, y: -yh, z: 0 };
 
     // Add a point in the center of the line to split
     var point = this.createPointShape(pos);

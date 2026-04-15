@@ -20,10 +20,10 @@ ROS2D.ImageMap = function(options) {
   createjs.Bitmap.call(this, image);
 
   // save the metadata we need
-  this.pose = new ROSLIB.Pose({
+  this.pose = {
     position : message.origin.position,
     orientation : message.origin.orientation
-  });
+  };
 
   // set the size
   this.width = message.width;

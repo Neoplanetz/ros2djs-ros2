@@ -24,9 +24,9 @@ ROS2D.ZoomView = function(options) {
 		this.stage = this.rootObject.getStage();
 	}
 
-	this.center = new ROSLIB.Vector3();
-	this.startShift = new ROSLIB.Vector3();
-	this.startScale = new ROSLIB.Vector3();
+	this.center = { x: 0, y: 0, z: 0 };
+	this.startShift = { x: 0, y: 0, z: 0 };
+	this.startScale = { x: 0, y: 0, z: 0 };
 };
 
 

@@ -22,7 +22,7 @@ ROS2D.PanView = function(options) {
 		this.stage = this.rootObject.getStage();
 	}
 
-	this.startPos = new ROSLIB.Vector3();
+	this.startPos = { x: 0, y: 0, z: 0 };
 };
 
 

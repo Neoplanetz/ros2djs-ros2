@@ -35,7 +35,7 @@ ROS2D.OccupancyGridSrvClient = function(options) {
     compression : 'png'
   });
 
-  rosService.callService(new ROSLIB.ServiceRequest(),function(response) {
+  rosService.callService({},function(response) {
     // check for an old map
     if (that.currentGrid) {
       that.rootObject.removeChild(that.currentGrid);

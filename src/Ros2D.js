@@ -12,10 +12,7 @@ var ROS2D = ROS2D || {
 createjs.Stage.prototype.globalToRos = function(x, y) {
   var rosX = (x - this.x) / this.scaleX;
   var rosY = (this.y - y) / this.scaleY;
-  return new ROSLIB.Vector3({
-    x : rosX,
-    y : rosY
-  });
+  return { x: rosX, y: rosY, z: 0 };
 };
 
 // convert the given ROS coordinates to global Stage coordinates

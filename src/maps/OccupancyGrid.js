@@ -59,10 +59,10 @@ ROS2D.OccupancyGrid = function(options) {
   this.height = canvas.height;
 
   // save the metadata we need
-  this.pose = new ROSLIB.Pose({
+  this.pose = {
     position : message.info.origin.position,
     orientation : message.info.origin.orientation
-  });
+  };
 
   // change Y direction
   this.y = -this.height * message.info.resolution;
