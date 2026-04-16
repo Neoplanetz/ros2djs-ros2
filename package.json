@@ -58,6 +58,7 @@
     "url": "https://github.com/RobotWebTools/ros2djs/issues"
   },
   "scripts": {
+    "prebuild": "grunt transpile",
     "build": "rollup -c && npm run build:types",
     "build:types": "tsc -p tsconfig.json",
     "doc": "grunt doc",
