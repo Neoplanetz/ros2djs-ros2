@@ -210,8 +210,8 @@ const isFileClass = (filepath, className) => getFileClass(filepath) === classNam
 const transpile = {
   // Replace initial ROS2D assignment
   initialROS2DAssignment: [
-    // from
-    /var ROS2D = ROS2D \|\| \{\n  REVISION \: '([0-9]+\.[0-9]+\.[0-9]+)'\n\};/m,
+    // from — allow an optional JSDoc block between `{` and `REVISION`
+    /var ROS2D = ROS2D \|\| \{[\s\S]*?REVISION \: '([0-9]+\.[0-9]+\.[0-9]+)'[\s\S]*?\};/,
     // to
     (match, $1) => {
       const revision = $1
@@ -633,7 +633,7 @@ const transpileToEs6 = function (content, filepath, grunt) {
   let transpiled = content
 
   // transpile content from current format to ES6
-  if (filepath === 'src/ROS2D.js') {
+  if (path.basename(filepath).toLowerCase() === 'ros2d.js') {
     transpiled = transpiled
       .replace(...transpile.initialROS2DAssignment)
   }
