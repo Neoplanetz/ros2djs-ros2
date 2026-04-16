@@ -2,7 +2,7 @@
   "name": "ros2d",
   "homepage": "https://robotwebtools.github.io",
   "description": "2D Visualization Library for use with the ROS JavaScript Libraries",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "license": "BSD-3-Clause",
   "main": "./build/ros2d.cjs.js",
   "module": "./build/ros2d.esm.js",
