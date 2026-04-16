@@ -21,3 +21,4 @@ export class ImageMap extends createjs.Bitmap {
     scaleX: any;
     scaleY: any;
 }
+import * as createjs from 'createjs-module';

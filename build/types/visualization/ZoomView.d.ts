@@ -1,12 +1,16 @@
 /**
- * Adds zooming to a view
- *
- * @constructor
- * @param options - object with following keys:
- *   * rootObject (optional) - the root object to apply zoom to
- *   * minScale (optional) - minimum scale to set to preserve precision
+ * @fileOverview
+ * @author Bart van Vliet - bart@dobots.nl
  */
 export class ZoomView {
+    /**
+     * Adds zooming to a view
+     *
+     * @constructor
+     * @param options - object with following keys:
+     *   * rootObject (optional) - the root object to apply zoom to
+     *   * minScale (optional) - minimum scale to set to preserve precision
+     */
     constructor(options: any);
     rootObject: any;
     minScale: any;

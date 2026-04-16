@@ -1,11 +1,15 @@
 /**
- * Adds rotation to a view
- *
- * @constructor
- * @param options - object with following keys:
- *   * rootObject (optional) - the root object to apply rotation to
+ * @fileOverview
+ * @author Assistant
  */
 export class RotateView {
+    /**
+     * Adds rotation to a view
+     *
+     * @constructor
+     * @param options - object with following keys:
+     *   * rootObject (optional) - the root object to apply rotation to
+     */
     constructor(options: any);
     rootObject: any;
     stage: any;

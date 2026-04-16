@@ -2,20 +2,42 @@
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
+var ROSLIB = require('roslib');
+
+function _interopNamespace(e) {
+	if (e && e.__esModule) return e;
+	var n = Object.create(null);
+	if (e) {
+		Object.keys(e).forEach(function (k) {
+			if (k !== 'default') {
+				var d = Object.getOwnPropertyDescriptor(e, k);
+				Object.defineProperty(n, k, d.get ? d : {
+					enumerable: true,
+					get: function () { return e[k]; }
+				});
+			}
+		});
+	}
+	n["default"] = e;
+	return Object.freeze(n);
+}
+
+var ROSLIB__namespace = /*#__PURE__*/_interopNamespace(ROSLIB);
+
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
 function getDefaultExportFromCjs (x) {
 	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
 }
 
-var createjs$1 = {exports: {}};
+var createjs = {exports: {}};
 
-var createjs_1 = createjs$1.exports;
+var createjs_1 = createjs.exports;
 
 var hasRequiredCreatejs;
 
 function requireCreatejs () {
-	if (hasRequiredCreatejs) { return createjs$1.exports; }
+	if (hasRequiredCreatejs) { return createjs.exports; }
 	hasRequiredCreatejs = 1;
 	(function (module, exports) {
 		var createjs = (createjs_1.createjs = (createjs_1.createjs || {}));
@@ -26571,13 +26593,15 @@ function requireCreatejs () {
 
 		})();
 		{ module.exports = createjs_1.createjs; } 
-	} (createjs$1, createjs$1.exports));
-	return createjs$1.exports;
+	} (createjs, createjs.exports));
+	return createjs.exports;
 }
 
 var createjsExports = requireCreatejs();
 
-var REVISION = '1.0.0';
+// import * as createjs from 'createjs-module';
+
+var REVISION = '1.0.2';
 
 // convert the given global Stage coordinates to ROS coordinates
 createjsExports.Stage.prototype.globalToRos = function(x, y) {
@@ -26651,7 +26675,7 @@ var ImageMap = /*@__PURE__*/(function (superclass) {
   ImageMap.prototype.constructor = ImageMap;
 
   return ImageMap;
-}(createjs.Bitmap));
+}(createjsExports.Bitmap));
 
 var eventemitter3 = {exports: {}};
 
@@ -27012,19 +27036,6 @@ var EventEmitter = /*@__PURE__*/getDefaultExportFromCjs(eventemitter3Exports);
  * @author Russell Toris - rctoris@wpi.edu
  */
 
-/**
- * A image map is a PNG image scaled to fit to the dimensions of a OccupancyGrid.
- *
- * Emits the following events:
- *   * 'change' - there was an update or change in the map
- *
- * @constructor
- * @param options - object with following keys:
- *   * ros - the ROSLIB.Ros connection handle
- *   * topic (optional) - the map meta data topic to listen to
- *   * image - the image URL to load
- *   * rootObject (optional) - the root object to add this marker to
- */
 var ImageMapClient = /*@__PURE__*/(function (EventEmitter) {
   function ImageMapClient(options) {
     var this$1$1 = this;
@@ -27074,13 +27085,6 @@ var ImageMapClient = /*@__PURE__*/(function (EventEmitter) {
  * @author Russell Toris - rctoris@wpi.edu
  */
 
-/**
- * An OccupancyGrid can convert a ROS occupancy grid message into a createjs Bitmap object.
- *
- * @constructor
- * @param options - object with following keys:
- *   * message - the occupancy grid message
- */
 var OccupancyGrid = /*@__PURE__*/(function (superclass) {
   function OccupancyGrid(options) {
     options = options || {};
@@ -27162,47 +27166,39 @@ var OccupancyGrid = /*@__PURE__*/(function (superclass) {
  * @author Raffaello Bonghi - raffaello.bonghi@officinerobotiche.it
  */
 
-/**
- * A Grid object draw in map.
- *
- * @constructor
- * @param options - object with following keys:
- *  * size (optional) - the size of the grid
- *  * cellSize (optional) - the cell size of map
- *  * lineWidth (optional) - the width of the lines in the grid
- */
 var Grid = /*@__PURE__*/(function (superclass) {
   function Grid(options) {
-    options = options || {};
-    var size = options.size || 10;
-    var cellSize = options.cellSize || 0.1;
-    var lineWidth = options.lineWidth || 0.001;
-    // draw the arrow
-    var graphics = new createjsExports.Graphics();
-    // line width
-    graphics.setStrokeStyle(lineWidth*5);
-    graphics.beginStroke(createjsExports.Graphics.getRGB(0, 0, 0));
-    graphics.beginFill(createjsExports.Graphics.getRGB(255, 0, 0));
-    graphics.moveTo(-size*cellSize, 0);
-    graphics.lineTo(size*cellSize, 0);
-    graphics.moveTo(0, -size*cellSize);
-    graphics.lineTo(0, size*cellSize);
-    graphics.endFill();
-    graphics.endStroke();
+      options = options || {};
+      var size = options.size || 10;
+      var cellSize = options.cellSize || 0.1;
+      var lineWidth = options.lineWidth || 0.001;
+      // draw the arrow
+      var graphics = new createjsExports.Graphics();
+      // line width
+      graphics.setStrokeStyle(lineWidth*5);
+      graphics.beginStroke(createjsExports.Graphics.getRGB(0, 0, 0));
+      graphics.beginFill(createjsExports.Graphics.getRGB(255, 0, 0));
+      graphics.moveTo(-size*cellSize, 0);
+      graphics.lineTo(size*cellSize, 0);
+      graphics.moveTo(0, -size*cellSize);
+      graphics.lineTo(0, size*cellSize);
+      graphics.endFill();
+      graphics.endStroke();
 
-    graphics.setStrokeStyle(lineWidth);
-    graphics.beginStroke(createjsExports.Graphics.getRGB(0, 0, 0));
-    graphics.beginFill(createjsExports.Graphics.getRGB(255, 0, 0));
-    for (var i = -size; i <= size; i++) {
-      graphics.moveTo(-size*cellSize, i * cellSize);
-      graphics.lineTo(size*cellSize, i * cellSize);
-      graphics.moveTo(i * cellSize, -size*cellSize);
-      graphics.lineTo(i * cellSize, size*cellSize);
-    }
-    graphics.endFill();
-    graphics.endStroke();
-    // create the shape
-    superclass.call(this, graphics);
+      graphics.setStrokeStyle(lineWidth);
+      graphics.beginStroke(createjsExports.Graphics.getRGB(0, 0, 0));
+      graphics.beginFill(createjsExports.Graphics.getRGB(255, 0, 0));
+      for (var i = -size; i <= size; i++) {
+          graphics.moveTo(-size*cellSize, i * cellSize);
+          graphics.lineTo(size*cellSize, i * cellSize);
+          graphics.moveTo(i * cellSize, -size*cellSize);
+          graphics.lineTo(i * cellSize, size*cellSize);
+      }
+      graphics.endFill();
+      graphics.endStroke();
+      // create the shape
+      superclass.call(this, graphics);
+
   }
 
   if ( superclass ) Grid.__proto__ = superclass;
@@ -27217,19 +27213,6 @@ var Grid = /*@__PURE__*/(function (superclass) {
  * @author Russell Toris - rctoris@wpi.edu
  */
 
-/**
- * A map that listens to a given occupancy grid topic.
- *
- * Emits the following events:
- *   * 'change' - there was an update or change in the map
- *
- * @constructor
- * @param options - object with following keys:
- *   * ros - the ROSLIB.Ros connection handle
- *   * topic (optional) - the map topic to listen to
- *   * rootObject (optional) - the root object to add this marker to
- *   * continuous (optional) - if the map should be continuously loaded (e.g., for SLAM)
- */
 var OccupancyGridClient = /*@__PURE__*/(function (EventEmitter) {
   function OccupancyGridClient(options) {
     EventEmitter.call(this);
@@ -27248,7 +27231,7 @@ var OccupancyGridClient = /*@__PURE__*/(function (EventEmitter) {
     this.rootObject.addChild(new Grid({size:1}));
 
     // subscribe to the topic
-    var rosTopic = new ROSLIB.Topic({
+    var rosTopic = new ROSLIB__namespace.Topic({
       ros : ros,
       name : topic,
       messageType : 'nav_msgs/OccupancyGrid'
@@ -27295,18 +27278,6 @@ var OccupancyGridClient = /*@__PURE__*/(function (EventEmitter) {
  * @author Russell Toris - rctoris@wpi.edu
  */
 
-/**
- * A static map that receives from map_server.
- *
- * Emits the following events:
- *   * 'change' - there was an update or change in the map
- *
- * @constructor
- * @param options - object with following keys:
- *   * ros - the ROSLIB.Ros connection handle
- *   * service (optional) - the map topic to listen to, like '/static_map'
- *   * rootObject (optional) - the root object to add this marker to
- */
 var OccupancyGridSrvClient = /*@__PURE__*/(function (EventEmitter) {
   function OccupancyGridSrvClient(options) {
     EventEmitter.call(this);
@@ -27320,7 +27291,7 @@ var OccupancyGridSrvClient = /*@__PURE__*/(function (EventEmitter) {
     this.currentGrid = null;
 
     // Setting up to the service
-    var rosService = new ROSLIB.Service({
+    var rosService = new ROSLIB__namespace.Service({
       ros : ros,
       name : service,
       serviceType : 'nav_msgs/GetMap',
@@ -27354,68 +27325,55 @@ var OccupancyGridSrvClient = /*@__PURE__*/(function (EventEmitter) {
  * @author Bart van Vliet - bart@dobots.nl
  */
 
-/**
- * An arrow with line and triangular head, based on the navigation arrow.
- * Aims to the left at 0 rotation, as would be expected.
- *
- * @constructor
- * @param {Object} options
- * @param {Int} [options.size] - The size of the marker
- * @param {Int} [options.strokeSize] - The size of the outline
- * @param {String} [options.strokeColor] - The createjs color for the stroke
- * @param {String} [options.fillColor] - The createjs color for the fill
- * @param {Bool} [options.pulse] - If the marker should "pulse" over time
- */
 var ArrowShape = /*@__PURE__*/(function (superclass) {
   function ArrowShape(options) {
-    var that;
-    options = options || {};
-    var size = options.size || 10;
-    var strokeSize = options.strokeSize || 3;
-    var strokeColor = options.strokeColor || createjsExports.Graphics.getRGB(0, 0, 0);
-    var fillColor = options.fillColor || createjsExports.Graphics.getRGB(255, 0, 0);
-    var pulse = options.pulse;
+  	var that = this;
+  	options = options || {};
+  	var size = options.size || 10;
+  	var strokeSize = options.strokeSize || 3;
+  	var strokeColor = options.strokeColor || createjsExports.Graphics.getRGB(0, 0, 0);
+  	var fillColor = options.fillColor || createjsExports.Graphics.getRGB(255, 0, 0);
+  	var pulse = options.pulse;
 
-    // draw the arrow
-    var graphics = new createjsExports.Graphics();
+  	// draw the arrow
+  	var graphics = new createjsExports.Graphics();
 
-    var headLen = size / 3.0;
-    var headWidth = headLen * 2.0 / 3.0;
+  	var headLen = size / 3.0;
+  	var headWidth = headLen * 2.0 / 3.0;
 
-    graphics.setStrokeStyle(strokeSize);
-    graphics.beginStroke(strokeColor);
-    graphics.moveTo(0, 0);
-    graphics.lineTo(size-headLen, 0);
+  	graphics.setStrokeStyle(strokeSize);
+  	graphics.beginStroke(strokeColor);
+  	graphics.moveTo(0, 0);
+  	graphics.lineTo(size-headLen, 0);
 
-    graphics.beginFill(fillColor);
-    graphics.moveTo(size, 0);
-    graphics.lineTo(size-headLen, headWidth / 2.0);
-    graphics.lineTo(size-headLen, -headWidth / 2.0);
-    graphics.closePath();
-    graphics.endFill();
-    graphics.endStroke();
+  	graphics.beginFill(fillColor);
+  	graphics.moveTo(size, 0);
+  	graphics.lineTo(size-headLen, headWidth / 2.0);
+  	graphics.lineTo(size-headLen, -headWidth / 2.0);
+  	graphics.closePath();
+  	graphics.endFill();
+  	graphics.endStroke();
 
-    // create the shape
-    superclass.call(this, graphics);
-    that = this;
+  	// create the shape
+  	superclass.call(this, graphics);
 
-    // check if we are pulsing
-    if (pulse) {
-      // have the model "pulse"
-      var growCount = 0;
-      var growing = true;
-      createjsExports.Ticker.addEventListener('tick', function() {
-        if (growing) {
-          that.scaleX *= 1.035;
-          that.scaleY *= 1.035;
-          growing = (++growCount < 10);
-        } else {
-          that.scaleX /= 1.035;
-          that.scaleY /= 1.035;
-          growing = (--growCount < 0);
-        }
-      });
-    }
+  	// check if we are pulsing
+  	if (pulse) {
+  		// have the model "pulse"
+  		var growCount = 0;
+  		var growing = true;
+  		createjsExports.Ticker.addEventListener('tick', function() {
+  			if (growing) {
+  				that.scaleX *= 1.035;
+  				that.scaleY *= 1.035;
+  				growing = (++growCount < 10);
+  			} else {
+  				that.scaleX /= 1.035;
+  				that.scaleY /= 1.035;
+  				growing = (--growCount < 0);
+  			}
+  		});
+  	}
   }
 
   if ( superclass ) ArrowShape.__proto__ = superclass;
@@ -27430,20 +27388,9 @@ var ArrowShape = /*@__PURE__*/(function (superclass) {
  * @author Russell Toris - rctoris@wpi.edu
  */
 
-/**
- * A navigation arrow is a directed triangle that can be used to display orientation.
- *
- * @constructor
- * @param options - object with following keys:
- *   * size (optional) - the size of the marker
- *   * strokeSize (optional) - the size of the outline
- *   * strokeColor (optional) - the createjs color for the stroke
- *   * fillColor (optional) - the createjs color for the fill
- *   * pulse (optional) - if the marker should "pulse" over time
- */
 var NavigationArrow = /*@__PURE__*/(function (superclass) {
   function NavigationArrow(options) {
-    var that;
+    var that = this;
     options = options || {};
     var size = options.size || 10;
     var strokeSize = options.strokeSize || 3;
@@ -27466,7 +27413,6 @@ var NavigationArrow = /*@__PURE__*/(function (superclass) {
 
     // create the shape
     superclass.call(this, graphics);
-    that = this;
 
     // check if we are pulsing
     if (pulse) {
@@ -27499,15 +27445,6 @@ var NavigationArrow = /*@__PURE__*/(function (superclass) {
  * @author Inigo Gonzalez - ingonza85@gmail.com
  */
 
-/**
- * A navigation image that can be used to display orientation.
- *
- * @constructor
- * @param options - object with following keys:
- *   * size (optional) - the size of the marker
- *   * image - the image to use as a marker
- *   * pulse (optional) - if the marker should "pulse" over time
- */
 var NavigationImage = /*@__PURE__*/(function (superclass) {
   function NavigationImage(options) {
     options = options || {};
@@ -27522,21 +27459,15 @@ var NavigationImage = /*@__PURE__*/(function (superclass) {
 
     superclass.call(this, image);
 
-    var that = this;
-
-    var calculateScale = function(_size){
-      return _size / image.width;
-    };
-
     var paintImage = function() {
       var scale = calculateScale(size);
-      that.alpha = alpha;
-      that.scaleX = scale;
-      that.scaleY = scale;
-      that.regY = that.image.height/2;
-      that.regX = that.image.width/2;
-      originals['rotation'] = that.rotation;
-      Object.defineProperty(that, 'rotation', {
+      this.alpha = alpha;
+      this.scaleX = scale;
+      this.scaleY = scale;
+      this.regY = this.image.height/2;
+      this.regX = this.image.width/2;
+      originals['rotation'] = this.rotation;
+      Object.defineProperty(this, 'rotation', {
         get: function(){ return originals['rotation'] + 90; },
         set: function(value){ originals['rotation'] = value; }
       });
@@ -27547,20 +27478,25 @@ var NavigationImage = /*@__PURE__*/(function (superclass) {
         var SCALE_SIZE = 1.020;
         createjsExports.Ticker.addEventListener('tick', function() {
           if (growing) {
-            that.scaleX *= SCALE_SIZE;
-            that.scaleY *= SCALE_SIZE;
+            this.scaleX *= SCALE_SIZE;
+            this.scaleY *= SCALE_SIZE;
             growing = (++growCount < 10);
           } else {
-            that.scaleX /= SCALE_SIZE;
-            that.scaleY /= SCALE_SIZE;
+            this.scaleX /= SCALE_SIZE;
+            this.scaleY /= SCALE_SIZE;
             growing = (--growCount < 0);
           }
         });
       }
     };
 
-    image.onload = paintImage;
+    image.onload = paintImage.bind(this);
     image.src = image_url;
+
+    var calculateScale = function(_size){
+      return _size / image.width;
+    };
+
   }
 
   if ( superclass ) NavigationImage.__proto__ = superclass;
@@ -27575,62 +27511,49 @@ var NavigationImage = /*@__PURE__*/(function (superclass) {
  * @author Bart van Vliet - bart@dobots.nl
  */
 
-/**
- * A shape to draw a nav_msgs/Path msg
- *
- * @constructor
- * @param options - object with following keys:
- *   * path (optional) - the initial path to draw
- *   * strokeSize (optional) - the size of the outline
- *   * strokeColor (optional) - the createjs color for the stroke
- */
 var PathShape = /*@__PURE__*/(function (superclass) {
   function PathShape(options) {
-    options = options || {};
-    var path = options.path;
+  	options = options || {};
+  	var path = options.path;
+  	this.strokeSize = options.strokeSize || 3;
+  	this.strokeColor = options.strokeColor || createjsExports.Graphics.getRGB(0, 0, 0);
 
-    // We need a temporary graphics to pass to super, then re-assign
-    var graphics = new createjsExports.Graphics();
+  	// draw the line
+  	this.graphics = new createjsExports.Graphics();
 
-    superclass.call(this, graphics);
+  	if (path !== null && typeof path !== 'undefined') {
+  		this.graphics.setStrokeStyle(this.strokeSize);
+  		this.graphics.beginStroke(this.strokeColor);
+  		this.graphics.moveTo(path.poses[0].pose.position.x / this.scaleX, path.poses[0].pose.position.y / -this.scaleY);
+  		for (var i=1; i<path.poses.length; ++i) {
+  			this.graphics.lineTo(path.poses[i].pose.position.x / this.scaleX, path.poses[i].pose.position.y / -this.scaleY);
+  		}
+  		this.graphics.endStroke();
+  	}
 
-    this.strokeSize = options.strokeSize || 3;
-    this.strokeColor = options.strokeColor || createjsExports.Graphics.getRGB(0, 0, 0);
-
-    // Use the graphics from the Shape
-    this.graphics = graphics;
-
-    if (path !== null && typeof path !== 'undefined') {
-      this.graphics.setStrokeStyle(this.strokeSize);
-      this.graphics.beginStroke(this.strokeColor);
-      this.graphics.moveTo(path.poses[0].pose.position.x / this.scaleX, path.poses[0].pose.position.y / -this.scaleY);
-      for (var i=1; i<path.poses.length; ++i) {
-        this.graphics.lineTo(path.poses[i].pose.position.x / this.scaleX, path.poses[i].pose.position.y / -this.scaleY);
-      }
-      this.graphics.endStroke();
-    }
+  	// create the shape
+  	superclass.call(this, this.graphics);
   }
 
   if ( superclass ) PathShape.__proto__ = superclass;
   PathShape.prototype = Object.create( superclass && superclass.prototype );
   PathShape.prototype.constructor = PathShape;
-
   /**
    * Set the path to draw
    *
    * @param path of type nav_msgs/Path
    */
   PathShape.prototype.setPath = function setPath (path) {
-    this.graphics.clear();
-    if (path !== null && typeof path !== 'undefined') {
-      this.graphics.setStrokeStyle(this.strokeSize);
-      this.graphics.beginStroke(this.strokeColor);
-      this.graphics.moveTo(path.poses[0].pose.position.x / this.scaleX, path.poses[0].pose.position.y / -this.scaleY);
-      for (var i=1; i<path.poses.length; ++i) {
-        this.graphics.lineTo(path.poses[i].pose.position.x / this.scaleX, path.poses[i].pose.position.y / -this.scaleY);
-      }
-      this.graphics.endStroke();
-    }
+  	this.graphics.clear();
+  	if (path !== null && typeof path !== 'undefined') {
+  		this.graphics.setStrokeStyle(this.strokeSize);
+  		this.graphics.beginStroke(this.strokeColor);
+  		this.graphics.moveTo(path.poses[0].pose.position.x / this.scaleX, path.poses[0].pose.position.y / -this.scaleY);
+  		for (var i=1; i<path.poses.length; ++i) {
+  			this.graphics.lineTo(path.poses[i].pose.position.x / this.scaleX, path.poses[i].pose.position.y / -this.scaleY);
+  		}
+  		this.graphics.endStroke();
+  	}
   };
 
   return PathShape;
@@ -27641,162 +27564,166 @@ var PathShape = /*@__PURE__*/(function (superclass) {
  * @author Bart van Vliet - bart@dobots.nl
  */
 
-/**
- * A polygon that can be edited by an end user
- *
- * @constructor
- * @param options - object with following keys:
- *   * pose (optional) - the first pose of the trace
- *   * lineSize (optional) - the width of the lines
- *   * lineColor (optional) - the createjs color of the lines
- *   * pointSize (optional) - the size of the points
- *   * pointColor (optional) - the createjs color of the points
- *   * fillColor (optional) - the createjs color to fill the polygon
- *   * lineCallBack (optional) - callback function for mouse interaction with a line
- *   * pointCallBack (optional) - callback function for mouse interaction with a point
- */
 var PolygonMarker = /*@__PURE__*/(function (superclass) {
   function PolygonMarker(options) {
-    superclass.call(this);
-    options = options || {};
-    this.lineSize = options.lineSize || 3;
-    this.lineColor = options.lineColor || createjsExports.Graphics.getRGB(0, 0, 255, 0.66);
-    this.pointSize = options.pointSize || 10;
-    this.pointColor = options.pointColor || createjsExports.Graphics.getRGB(255, 0, 0, 0.66);
-    this.fillColor = options.pointColor || createjsExports.Graphics.getRGB(0, 255, 0, 0.33);
-    this.lineCallBack = options.lineCallBack;
-    this.pointCallBack = options.pointCallBack;
+  //  var that = this;
+      superclass.call(this);
+      options = options || {};
+      this.lineSize = options.lineSize || 3;
+      this.lineColor = options.lineColor || createjsExports.Graphics.getRGB(0, 0, 255, 0.66);
+      this.pointSize = options.pointSize || 10;
+      this.pointColor = options.pointColor || createjsExports.Graphics.getRGB(255, 0, 0, 0.66);
+      this.fillColor = options.pointColor || createjsExports.Graphics.getRGB(0, 255, 0, 0.33);
+      this.lineCallBack = options.lineCallBack;
+      this.pointCallBack = options.pointCallBack;
 
-    // Array of point shapes
-    this.pointContainer = new createjsExports.Container();
+      // Array of point shapes
+  //  this.points = [];
+      this.pointContainer = new createjsExports.Container();
 
-    // Array of line shapes
-    this.lineContainer = new createjsExports.Container();
+      // Array of line shapes
+  //  this.lines = [];
+      this.lineContainer = new createjsExports.Container();
 
-    this.fillShape = new createjsExports.Shape();
+      this.fillShape = new createjsExports.Shape();
 
-    // Container with all the lines and points
-    this.addChild(this.fillShape);
-    this.addChild(this.lineContainer);
-    this.addChild(this.pointContainer);
+      // Container with all the lines and points
+      this.addChild(this.fillShape);
+      this.addChild(this.lineContainer);
+      this.addChild(this.pointContainer);
   }
 
   if ( superclass ) PolygonMarker.__proto__ = superclass;
   PolygonMarker.prototype = Object.create( superclass && superclass.prototype );
   PolygonMarker.prototype.constructor = PolygonMarker;
-
   /**
    * Internal use only
    */
   PolygonMarker.prototype.createLineShape = function createLineShape (startPoint, endPoint) {
-    var line = new createjsExports.Shape();
-    this.editLineShape(line, startPoint, endPoint);
+      var line = new createjsExports.Shape();
+  //  line.graphics.setStrokeStyle(this.strokeSize);
+  //  line.graphics.beginStroke(this.strokeColor);
+  //  line.graphics.moveTo(startPoint.x, startPoint.y);
+  //  line.graphics.lineTo(endPoint.x, endPoint.y);
+      this.editLineShape(line, startPoint, endPoint);
 
-    var that = this;
-    line.addEventListener('mousedown', function(event) {
-      if (that.lineCallBack !== null && typeof that.lineCallBack !== 'undefined') {
-        that.lineCallBack('mousedown', event, that.lineContainer.getChildIndex(event.target));
-      }
-    });
+      var that = this;
+      line.addEventListener('mousedown', function(event) {
+          if (that.lineCallBack !== null && typeof that.lineCallBack !== 'undefined') {
+              that.lineCallBack('mousedown', event, that.lineContainer.getChildIndex(event.target));
+          }
+      });
 
-    return line;
+      return line;
   };
-
   /**
    * Internal use only
    */
   PolygonMarker.prototype.editLineShape = function editLineShape (line, startPoint, endPoint) {
-    line.graphics.clear();
-    line.graphics.setStrokeStyle(this.lineSize);
-    line.graphics.beginStroke(this.lineColor);
-    line.graphics.moveTo(startPoint.x, startPoint.y);
-    line.graphics.lineTo(endPoint.x, endPoint.y);
+      line.graphics.clear();
+      line.graphics.setStrokeStyle(this.lineSize);
+      line.graphics.beginStroke(this.lineColor);
+      line.graphics.moveTo(startPoint.x, startPoint.y);
+      line.graphics.lineTo(endPoint.x, endPoint.y);
   };
-
   /**
    * Internal use only
    */
   PolygonMarker.prototype.createPointShape = function createPointShape (pos) {
-    var point = new createjsExports.Shape();
-    point.graphics.beginFill(this.pointColor);
-    point.graphics.drawCircle(0, 0, this.pointSize);
-    point.x = pos.x;
-    point.y = -pos.y;
+      var point = new createjsExports.Shape();
+      point.graphics.beginFill(this.pointColor);
+      point.graphics.drawCircle(0, 0, this.pointSize);
+      point.x = pos.x;
+      point.y = -pos.y;
 
-    var that = this;
-    point.addEventListener('mousedown', function(event) {
-      if (that.pointCallBack !== null && typeof that.pointCallBack !== 'undefined') {
-        that.pointCallBack('mousedown', event, that.pointContainer.getChildIndex(event.target));
-      }
-    });
+      var that = this;
+      point.addEventListener('mousedown', function(event) {
+          if (that.pointCallBack !== null && typeof that.pointCallBack !== 'undefined') {
+              that.pointCallBack('mousedown', event, that.pointContainer.getChildIndex(event.target));
+          }
+      });
 
-    return point;
+      return point;
   };
-
   /**
    * Adds a point to the polygon
    *
    * @param position of type ROSLIB.Vector3
    */
   PolygonMarker.prototype.addPoint = function addPoint (pos) {
-    var point = this.createPointShape(pos);
-    this.pointContainer.addChild(point);
-    var numPoints = this.pointContainer.numChildren;
+      var point = this.createPointShape(pos);
+      this.pointContainer.addChild(point);
+      var numPoints = this.pointContainer.numChildren;
 
-    if (numPoints < 2) ;
-    else if (numPoints < 3) {
-      // Now 2 points: add line between previous and new point
-      var line = this.createLineShape(this.pointContainer.getChildAt(numPoints-2), point);
-      this.lineContainer.addChild(line);
-    }
-    if (numPoints > 2) {
-      // Now 3 or more points: change last line
-      this.editLineShape(this.lineContainer.getChildAt(numPoints-2), this.pointContainer.getChildAt(numPoints-2), point);
-    }
-    if (numPoints > 1) {
-      // Now 2 or more points: add line between new point and first point
-      var lineEnd = this.createLineShape(point, this.pointContainer.getChildAt(0));
-      this.lineContainer.addChild(lineEnd);
-    }
+      // 0 points -> 1 point, 0 lines
+      // 1 point  -> 2 points, lines: add line between previous and new point, add line between new point and first point
+      // 2 points -> 3 points, 3 lines: change last line, add line between new point and first point
+      // 3 points -> 4 points, 4 lines: change last line, add line between new point and first point
+      // etc
 
-    this.drawFill();
+      if (numPoints < 2) ;
+      else if (numPoints < 3) {
+          // Now 2 points: add line between previous and new point
+          var line = this.createLineShape(this.pointContainer.getChildAt(numPoints-2), point);
+          this.lineContainer.addChild(line);
+      }
+      if (numPoints > 2) {
+          // Now 3 or more points: change last line
+          this.editLineShape(this.lineContainer.getChildAt(numPoints-2), this.pointContainer.getChildAt(numPoints-2), point);
+      }
+      if (numPoints > 1) {
+          // Now 2 or more points: add line between new point and first point
+          var lineEnd = this.createLineShape(point, this.pointContainer.getChildAt(0));
+          this.lineContainer.addChild(lineEnd);
+      }
+
+      this.drawFill();
   };
-
   /**
    * Removes a point from the polygon
    *
    * @param obj either an index (integer) or a point shape of the polygon
    */
   PolygonMarker.prototype.remPoint = function remPoint (obj) {
-    var index;
-    if (obj instanceof createjsExports.Shape) {
-      index = this.pointContainer.getChildIndex(obj);
-    }
-    else {
-      index = obj;
-    }
+      var index;
+  //  var point;
+      if (obj instanceof createjsExports.Shape) {
+          index = this.pointContainer.getChildIndex(obj);
+  //      point = obj;
+      }
+      else {
+          index = obj;
+  //      point = this.pointContainer.getChildAt(index);
+      }
 
-    var numPoints = this.pointContainer.numChildren;
+      // 0 points -> 0 points, 0 lines
+      // 1 point  -> 0 points, 0 lines
+      // 2 points -> 1 point,  0 lines: remove all lines
+      // 3 points -> 2 points, 2 lines: change line before point to remove, remove line after point to remove
+      // 4 points -> 3 points, 3 lines: change line before point to remove, remove line after point to remove
+      // etc
 
-    if (numPoints < 2) ;
-    else if (numPoints < 3) {
-      // 2 points: remove all lines
-      this.lineContainer.removeAllChildren();
-    }
-    else {
-      // 3 or more points: change line before point to remove, remove line after point to remove
-      this.editLineShape(
-        this.lineContainer.getChildAt((index-1+numPoints)%numPoints),
-        this.pointContainer.getChildAt((index-1+numPoints)%numPoints),
-        this.pointContainer.getChildAt((index+1)%numPoints)
-      );
-      this.lineContainer.removeChildAt(index);
-    }
-    this.pointContainer.removeChildAt(index);
+      var numPoints = this.pointContainer.numChildren;
 
-    this.drawFill();
+      if (numPoints < 2) ;
+      else if (numPoints < 3) {
+          // 2 points: remove all lines
+          this.lineContainer.removeAllChildren();
+      }
+      else {
+          // 3 or more points: change line before point to remove, remove line after point to remove
+          this.editLineShape(
+              this.lineContainer.getChildAt((index-1+numPoints)%numPoints),
+              this.pointContainer.getChildAt((index-1+numPoints)%numPoints),
+              this.pointContainer.getChildAt((index+1)%numPoints)
+          );
+          this.lineContainer.removeChildAt(index);
+      }
+      this.pointContainer.removeChildAt(index);
+  //  this.points.splice(index, 1);
+
+      this.drawFill();
   };
-
   /**
    * Moves a point of the polygon
    *
@@ -27804,95 +27731,93 @@ var PolygonMarker = /*@__PURE__*/(function (superclass) {
    * @param position of type ROSLIB.Vector3
    */
   PolygonMarker.prototype.movePoint = function movePoint (obj, newPos) {
-    var index;
-    var point;
-    if (obj instanceof createjsExports.Shape) {
-      index = this.pointContainer.getChildIndex(obj);
-      point = obj;
-    }
-    else {
-      index = obj;
-      point = this.pointContainer.getChildAt(index);
-    }
-    point.x = newPos.x;
-    point.y = -newPos.y;
+      var index;
+      var point;
+      if (obj instanceof createjsExports.Shape) {
+          index = this.pointContainer.getChildIndex(obj);
+          point = obj;
+      }
+      else {
+          index = obj;
+          point = this.pointContainer.getChildAt(index);
+      }
+      point.x = newPos.x;
+      point.y = -newPos.y;
 
-    var numPoints = this.pointContainer.numChildren;
-    if (numPoints > 1) {
-      // line before moved point
-      var line1 = this.lineContainer.getChildAt((index-1+numPoints)%numPoints);
-      this.editLineShape(line1, this.pointContainer.getChildAt((index-1+numPoints)%numPoints), point);
+      var numPoints = this.pointContainer.numChildren;
+      if (numPoints > 1) {
+          // line before moved point
+          var line1 = this.lineContainer.getChildAt((index-1+numPoints)%numPoints);
+          this.editLineShape(line1, this.pointContainer.getChildAt((index-1+numPoints)%numPoints), point);
 
-      // line after moved point
-      var line2 = this.lineContainer.getChildAt(index);
-      this.editLineShape(line2, point, this.pointContainer.getChildAt((index+1)%numPoints));
-    }
+          // line after moved point
+          var line2 = this.lineContainer.getChildAt(index);
+          this.editLineShape(line2, point, this.pointContainer.getChildAt((index+1)%numPoints));
+      }
 
-    this.drawFill();
+      this.drawFill();
   };
-
   /**
    * Splits a line of the polygon: inserts a point at the center of the line
    *
    * @param obj either an index (integer) or a line shape of the polygon
    */
   PolygonMarker.prototype.splitLine = function splitLine (obj) {
-    var index;
-    var line;
-    if (obj instanceof createjsExports.Shape) {
-      index = this.lineContainer.getChildIndex(obj);
-      line = obj;
-    }
-    else {
-      index = obj;
-      line = this.lineContainer.getChildAt(index);
-    }
-    var numPoints = this.pointContainer.numChildren;
-    var xs = this.pointContainer.getChildAt(index).x;
-    var ys = this.pointContainer.getChildAt(index).y;
-    var xe = this.pointContainer.getChildAt((index+1)%numPoints).x;
-    var ye = this.pointContainer.getChildAt((index+1)%numPoints).y;
-    var xh = (xs+xe)/2.0;
-    var yh = (ys+ye)/2.0;
-    var pos = { x: xh, y: -yh, z: 0 };
+      var index;
+      var line;
+      if (obj instanceof createjsExports.Shape) {
+          index = this.lineContainer.getChildIndex(obj);
+          line = obj;
+      }
+      else {
+          index = obj;
+          line = this.lineContainer.getChildAt(index);
+      }
+      var numPoints = this.pointContainer.numChildren;
+      var xs = this.pointContainer.getChildAt(index).x;
+      var ys = this.pointContainer.getChildAt(index).y;
+      var xe = this.pointContainer.getChildAt((index+1)%numPoints).x;
+      var ye = this.pointContainer.getChildAt((index+1)%numPoints).y;
+      var xh = (xs+xe)/2.0;
+      var yh = (ys+ye)/2.0;
+      var pos = { x: xh, y: -yh, z: 0 };
 
-    // Add a point in the center of the line to split
-    var point = this.createPointShape(pos);
-    this.pointContainer.addChildAt(point, index+1);
-    ++numPoints;
+      // Add a point in the center of the line to split
+      var point = this.createPointShape(pos);
+      this.pointContainer.addChildAt(point, index+1);
+      ++numPoints;
 
-    // Add a line between the new point and the end of the line to split
-    var lineNew = this.createLineShape(point, this.pointContainer.getChildAt((index+2)%numPoints));
-    this.lineContainer.addChildAt(lineNew, index+1);
+      // Add a line between the new point and the end of the line to split
+      var lineNew = this.createLineShape(point, this.pointContainer.getChildAt((index+2)%numPoints));
+      this.lineContainer.addChildAt(lineNew, index+1);
 
-    // Set the endpoint of the line to split to the new point
-    this.editLineShape(line, this.pointContainer.getChildAt(index), point);
+      // Set the endpoint of the line to split to the new point
+      this.editLineShape(line, this.pointContainer.getChildAt(index), point);
 
-    this.drawFill();
+      this.drawFill();
   };
-
   /**
    * Internal use only
    */
   PolygonMarker.prototype.drawFill = function drawFill () {
-    var numPoints = this.pointContainer.numChildren;
-    if (numPoints > 2) {
-      var g = this.fillShape.graphics;
-      g.clear();
-      g.setStrokeStyle(0);
-      g.beginStroke();
-      g.beginFill(this.fillColor);
-      g.moveTo(this.pointContainer.getChildAt(0).x, this.pointContainer.getChildAt(0).y);
-      for (var i=1; i<numPoints; ++i) {
-        g.lineTo(this.pointContainer.getChildAt(i).x, this.pointContainer.getChildAt(i).y);
+      var numPoints = this.pointContainer.numChildren;
+      if (numPoints > 2) {
+          var g = this.fillShape.graphics;
+          g.clear();
+          g.setStrokeStyle(0);
+          g.beginStroke();
+          g.beginFill(this.fillColor);
+          g.moveTo(this.pointContainer.getChildAt(0).x, this.pointContainer.getChildAt(0).y);
+          for (var i=1; i<numPoints; ++i) {
+              g.lineTo(this.pointContainer.getChildAt(i).x, this.pointContainer.getChildAt(i).y);
+          }
+          g.closePath();
+          g.endFill();
+          g.endStroke();
       }
-      g.closePath();
-      g.endFill();
-      g.endStroke();
-    }
-    else {
-      this.fillShape.graphics.clear();
-    }
+      else {
+          this.fillShape.graphics.clear();
+      }
   };
 
   return PolygonMarker;
@@ -27903,93 +27828,80 @@ var PolygonMarker = /*@__PURE__*/(function (superclass) {
  * @author Bart van Vliet - bart@dobots.nl
  */
 
-/**
- * A trace of poses, handy to see where a robot has been
- *
- * @constructor
- * @param options - object with following keys:
- *   * pose (optional) - the first pose of the trace
- *   * strokeSize (optional) - the size of the outline
- *   * strokeColor (optional) - the createjs color for the stroke
- *   * maxPoses (optional) - the maximum number of poses to keep, 0 for infinite
- *   * minDist (optional) - the minimal distance between poses to use the pose for drawing (default 0.05)
- */
 var TraceShape = /*@__PURE__*/(function (superclass) {
   function TraceShape(options) {
-    options = options || {};
-    var pose = options.pose;
+  //	var that = this;
+  	options = options || {};
+  	var pose = options.pose;
+  	this.strokeSize = options.strokeSize || 3;
+  	this.strokeColor = options.strokeColor || createjsExports.Graphics.getRGB(0, 0, 0);
+  	this.maxPoses = (options.maxPoses || options.maxPoses === 0) ? options.maxPoses : 100;
+  	this.minDist = options.minDist || 0.05;
 
-    var graphics = new createjsExports.Graphics();
+  	// Store minDist as the square of it
+  	this.minDist = this.minDist*this.minDist;
 
-    superclass.call(this, graphics);
+  	// Array of the poses
+  	// TODO: do we need this?
+  	this.poses = [];
 
-    this.strokeSize = options.strokeSize || 3;
-    this.strokeColor = options.strokeColor || createjsExports.Graphics.getRGB(0, 0, 0);
-    this.maxPoses = (options.maxPoses || options.maxPoses === 0) ? options.maxPoses : 100;
-    this.minDist = options.minDist || 0.05;
+  	// Create the graphics
+  	this.graphics = new createjsExports.Graphics();
+  	this.graphics.setStrokeStyle(this.strokeSize);
+  	this.graphics.beginStroke(this.strokeColor);
 
-    // Store minDist as the square of it
-    this.minDist = this.minDist*this.minDist;
+  	// Add first pose if given
+  	if (pose !== null && typeof pose !== 'undefined') {
+  		this.poses.push(pose);
+  	}
 
-    // Array of the poses
-    this.poses = [];
-
-    // Create the graphics
-    this.graphics = graphics;
-    this.graphics.setStrokeStyle(this.strokeSize);
-    this.graphics.beginStroke(this.strokeColor);
-
-    // Add first pose if given
-    if (pose !== null && typeof pose !== 'undefined') {
-      this.poses.push(pose);
-    }
+  	// Create the shape
+  	superclass.call(this, this.graphics);
   }
 
   if ( superclass ) TraceShape.__proto__ = superclass;
   TraceShape.prototype = Object.create( superclass && superclass.prototype );
   TraceShape.prototype.constructor = TraceShape;
-
   /**
    * Adds a pose to the trace and updates the graphics
    *
    * @param pose of type ROSLIB.Pose
    */
   TraceShape.prototype.addPose = function addPose (pose) {
-    var last = this.poses.length-1;
-    if (last < 0) {
-      this.poses.push(pose);
-      this.graphics.moveTo(pose.position.x / this.scaleX, pose.position.y / -this.scaleY);
-    }
-    else {
-      var prevX = this.poses[last].position.x;
-      var prevY = this.poses[last].position.y;
-      var dx = (pose.position.x - prevX);
-      var dy = (pose.position.y - prevY);
-      if (dx*dx + dy*dy > this.minDist) {
-        this.graphics.lineTo(pose.position.x / this.scaleX, pose.position.y / -this.scaleY);
-        this.poses.push(pose);
-      }
-    }
-    if (this.maxPoses > 0 && this.maxPoses < this.poses.length) {
-      this.popFront();
-    }
+  	var last = this.poses.length-1;
+  	if (last < 0) {
+  		this.poses.push(pose);
+  		this.graphics.moveTo(pose.position.x / this.scaleX, pose.position.y / -this.scaleY);
+  	}
+  	else {
+  		var prevX = this.poses[last].position.x;
+  		var prevY = this.poses[last].position.y;
+  		var dx = (pose.position.x - prevX);
+  		var dy = (pose.position.y - prevY);
+  		if (dx*dx + dy*dy > this.minDist) {
+  			this.graphics.lineTo(pose.position.x / this.scaleX, pose.position.y / -this.scaleY);
+  			this.poses.push(pose);
+  		}
+  	}
+  	if (this.maxPoses > 0 && this.maxPoses < this.poses.length) {
+  		this.popFront();
+  	}
   };
-
   /**
    * Removes front pose and updates the graphics
    */
   TraceShape.prototype.popFront = function popFront () {
-    if (this.poses.length > 0) {
-      this.poses.shift();
-      // TODO: shift drawing instructions rather than doing it all over
-      this.graphics.clear();
-      this.graphics.setStrokeStyle(this.strokeSize);
-      this.graphics.beginStroke(this.strokeColor);
-      this.graphics.lineTo(this.poses[0].position.x / this.scaleX, this.poses[0].position.y / -this.scaleY);
-      for (var i=1; i<this.poses.length; ++i) {
-        this.graphics.lineTo(this.poses[i].position.x / this.scaleX, this.poses[i].position.y / -this.scaleY);
-      }
-    }
+  	if (this.poses.length > 0) {
+  		this.poses.shift();
+  		// TODO: shift drawing instructions rather than doing it all over
+  		this.graphics.clear();
+  		this.graphics.setStrokeStyle(this.strokeSize);
+  		this.graphics.beginStroke(this.strokeColor);
+  		this.graphics.lineTo(this.poses[0].position.x / this.scaleX, this.poses[0].position.y / -this.scaleY);
+  		for (var i=1; i<this.poses.length; ++i) {
+  			this.graphics.lineTo(this.poses[i].position.x / this.scaleX, this.poses[i].position.y / -this.scaleY);
+  		}
+  	}
   };
 
   return TraceShape;
@@ -28000,38 +27912,30 @@ var TraceShape = /*@__PURE__*/(function (superclass) {
  * @author Bart van Vliet - bart@dobots.nl
  */
 
-/**
- * Adds panning to a view
- *
- * @constructor
- * @param options - object with following keys:
- *   * rootObject (optional) - the root object to apply panning to
- */
 var PanView = function PanView(options) {
-  options = options || {};
-  this.rootObject = options.rootObject;
+  	options = options || {};
+  	this.rootObject = options.rootObject;
 
-  // get a handle to the stage
-  if (this.rootObject instanceof createjsExports.Stage) {
-    this.stage = this.rootObject;
-  }
-  else {
-    this.stage = this.rootObject.getStage();
-  }
+  	// get a handle to the stage
+  	if (this.rootObject instanceof createjsExports.Stage) {
+  		this.stage = this.rootObject;
+  	}
+  	else {
+  		this.stage = this.rootObject.getStage();
+  	}
 
-  this.startPos = { x: 0, y: 0, z: 0 };
+  	this.startPos = { x: 0, y: 0, z: 0 };
 };
 
 PanView.prototype.startPan = function startPan (startX, startY) {
-  this.startPos.x = startX;
-  this.startPos.y = startY;
+  	this.startPos.x = startX;
+  	this.startPos.y = startY;
 };
-
 PanView.prototype.pan = function pan (curX, curY) {
-  this.stage.x += curX - this.startPos.x;
-  this.startPos.x = curX;
-  this.stage.y += curY - this.startPos.y;
-  this.startPos.y = curY;
+  	this.stage.x += curX - this.startPos.x;
+  	this.startPos.x = curX;
+  	this.stage.y += curY - this.startPos.y;
+  	this.startPos.y = curY;
 };
 
 /**
@@ -28039,16 +27943,6 @@ PanView.prototype.pan = function pan (curX, curY) {
  * @author Russell Toris - rctoris@wpi.edu
  */
 
-/**
- * A Viewer can be used to render an interactive 2D scene to a HTML5 canvas.
- *
- * @constructor
- * @param options - object with following keys:
- *   * divID - the ID of the div to place the viewer in
- *   * width - the initial width, in pixels, of the canvas
- *   * height - the initial height, in pixels, of the canvas
- *   * background (optional) - the color to render the background, like '#efefef'
- */
 var Viewer = function Viewer(options) {
   options = options || {};
   var divID = options.divID;
@@ -28075,7 +27969,6 @@ var Viewer = function Viewer(options) {
   createjsExports.Ticker.framerate = 30;
   createjsExports.Ticker.addEventListener('tick', this.scene);
 };
-
 /**
  * Add the given createjs object to the global scene in the viewer.
  *
@@ -28084,7 +27977,6 @@ var Viewer = function Viewer(options) {
 Viewer.prototype.addObject = function addObject (object) {
   this.scene.addChild(object);
 };
-
 /**
  * Scale the scene to fit the given width and height into the current canvas.
  *
@@ -28100,7 +27992,6 @@ Viewer.prototype.scaleToDimensions = function scaleToDimensions (width, height) 
   this.scene.scaleX = this.width / width;
   this.scene.scaleY = this.height / height;
 };
-
 /**
  * Shift the main view of the canvas by the given amount. This is based on the
  * ROS coordinate system. That is, Y is opposite that of a traditional canvas.
@@ -28123,55 +28014,46 @@ Viewer.prototype.shift = function shift (x, y) {
  * @author Bart van Vliet - bart@dobots.nl
  */
 
-/**
- * Adds zooming to a view
- *
- * @constructor
- * @param options - object with following keys:
- *   * rootObject (optional) - the root object to apply zoom to
- *   * minScale (optional) - minimum scale to set to preserve precision
- */
 var ZoomView = function ZoomView(options) {
-  options = options || {};
-  this.rootObject = options.rootObject;
-  this.minScale = options.minScale || 0.001;
+  	options = options || {};
+  	this.rootObject = options.rootObject;
+  	this.minScale = options.minScale || 0.001;
 
-  // get a handle to the stage
-  if (this.rootObject instanceof createjsExports.Stage) {
-    this.stage = this.rootObject;
-  }
-  else {
-    this.stage = this.rootObject.getStage();
-  }
+  	// get a handle to the stage
+  	if (this.rootObject instanceof createjsExports.Stage) {
+  		this.stage = this.rootObject;
+  	}
+  	else {
+  		this.stage = this.rootObject.getStage();
+  	}
 
-  this.center = { x: 0, y: 0, z: 0 };
-  this.startShift = { x: 0, y: 0, z: 0 };
-  this.startScale = { x: 0, y: 0, z: 0 };
+  	this.center = { x: 0, y: 0, z: 0 };
+  	this.startShift = { x: 0, y: 0, z: 0 };
+  	this.startScale = { x: 0, y: 0, z: 0 };
 };
 
 ZoomView.prototype.startZoom = function startZoom (centerX, centerY) {
-  this.center.x = centerX;
-  this.center.y = centerY;
-  this.startShift.x = this.stage.x;
-  this.startShift.y = this.stage.y;
-  this.startScale.x = this.stage.scaleX;
-  this.startScale.y = this.stage.scaleY;
+  	this.center.x = centerX;
+  	this.center.y = centerY;
+  	this.startShift.x = this.stage.x;
+  	this.startShift.y = this.stage.y;
+  	this.startScale.x = this.stage.scaleX;
+  	this.startScale.y = this.stage.scaleY;
 };
-
 ZoomView.prototype.zoom = function zoom (zoom$1) {
-  // Make sure scale doesn't become too small
-  if (this.startScale.x*zoom$1 < this.minScale) {
-    zoom$1 = this.minScale/this.startScale.x;
-  }
-  if (this.startScale.y*zoom$1 < this.minScale) {
-    zoom$1 = this.minScale/this.startScale.y;
-  }
+  	// Make sure scale doesn't become too small
+  	if (this.startScale.x*zoom$1 < this.minScale) {
+  		zoom$1 = this.minScale/this.startScale.x;
+  	}
+  	if (this.startScale.y*zoom$1 < this.minScale) {
+  		zoom$1 = this.minScale/this.startScale.y;
+  	}
 
-  this.stage.scaleX = this.startScale.x*zoom$1;
-  this.stage.scaleY = this.startScale.y*zoom$1;
+  	this.stage.scaleX = this.startScale.x*zoom$1;
+  	this.stage.scaleY = this.startScale.y*zoom$1;
 
-  this.stage.x = this.startShift.x - (this.center.x-this.startShift.x) * (this.stage.scaleX/this.startScale.x - 1);
-  this.stage.y = this.startShift.y - (this.center.y-this.startShift.y) * (this.stage.scaleY/this.startScale.y - 1);
+  	this.stage.x = this.startShift.x - (this.center.x-this.startShift.x) * (this.stage.scaleX/this.startScale.x - 1);
+  	this.stage.y = this.startShift.y - (this.center.y-this.startShift.y) * (this.stage.scaleY/this.startScale.y - 1);
 };
 
 /**
@@ -28179,75 +28061,52 @@ ZoomView.prototype.zoom = function zoom (zoom$1) {
  * @author Assistant
  */
 
-/**
- * Adds rotation to a view
- *
- * @constructor
- * @param options - object with following keys:
- *   * rootObject (optional) - the root object to apply rotation to
- */
 var RotateView = function RotateView(options) {
-  options = options || {};
-  this.rootObject = options.rootObject;
+  	options = options || {};
+  	this.rootObject = options.rootObject;
 
-  // get a handle to the stage
-  if (this.rootObject instanceof createjsExports.Stage) {
-    this.stage = this.rootObject;
-  }
-  else {
-    this.stage = this.rootObject.getStage();
-  }
+  	// get a handle to the stage
+  	if (this.rootObject instanceof createjsExports.Stage) {
+  		this.stage = this.rootObject;
+  	}
+  	else {
+  		this.stage = this.rootObject.getStage();
+  	}
 
-  this.startAngle = 0;
-  this.currentRotation = 0;
+  	this.startAngle = 0;
+  	this.currentRotation = 0;
 };
-
 /**
  * Start the rotation
  * @param startX - the starting x position
  * @param startY - the starting y position
  */
 RotateView.prototype.startRotate = function startRotate (startX, startY) {
-  // Calculate initial angle from center of stage
-  this.startAngle = Math.atan2(startY - this.stage.y, startX - this.stage.x);
+  	// Calculate initial angle from center of stage
+  	this.startAngle = Math.atan2(startY - this.stage.y, startX - this.stage.x);
 };
-
 /**
  * Rotate the view
  * @param curX - the current x position
  * @param curY - the current y position
  */
 RotateView.prototype.rotate = function rotate (curX, curY) {
-  // Calculate current angle from center of stage
-  var currentAngle = Math.atan2(curY - this.stage.y, curX - this.stage.x);
-
-  // Calculate angle difference and convert to degrees
-  var angleDiff = (currentAngle - this.startAngle) * (180 / Math.PI);
-
-  // Update rotation
-  this.currentRotation += angleDiff;
-  this.stage.rotation = this.currentRotation;
-
-  // Update start angle for next rotation
-  this.startAngle = currentAngle;
+  	// Calculate current angle from center of stage
+  	var currentAngle = Math.atan2(curY - this.stage.y, curX - this.stage.x);
+  	
+  	// Calculate angle difference and convert to degrees
+  	var angleDiff = (currentAngle - this.startAngle) * (180 / Math.PI);
+  	
+  	// Update rotation
+  	this.currentRotation += angleDiff;
+  	this.stage.rotation = this.currentRotation;
+  	
+  	// Update start angle for next rotation
+  	this.startAngle = currentAngle;
 };
-
-/**
- * An Axis object is used to display X and Y axes in a 2D viewer.
- * It inherits from createjs.Container.
- *
- * @constructor
- * @param {Object} options - object with following keys:
- *   * axisLength (optional) - the length of the axes in meters (default: 1.5)
- *   * axisWidth (optional) - the width of the axis lines (default: 0.05)
- *   * arrowSize (optional) - the size of the arrow heads (default: 0.2)
- *   * xColor (optional) - the color of the X-axis (default: 'red')
- *   * yColor (optional) - the color of the Y-axis (default: 'green')
- */
 
 var Axis = /*@__PURE__*/(function (superclass) {
   function Axis(options) {
-    superclass.call(this);
     options = options || {};
     var axisLength = options.axisLength || 1.5;
     var axisWidth = options.axisWidth || 0.05;
@@ -28294,6 +28153,7 @@ var Axis = /*@__PURE__*/(function (superclass) {
     yLabel.scaleX = 0.5;
     yLabel.scaleY = 0.5;
 
+    superclass.call(this);
     this.addChild(xAxis, yAxis, xLabel, yLabel);
   }
 
@@ -28303,18 +28163,6 @@ var Axis = /*@__PURE__*/(function (superclass) {
 
   return Axis;
 }(createjsExports.Container));
-
-/**
- * A GridLines object is used to display grid lines in a 2D viewer.
- * It inherits from createjs.Shape.
- *
- * @constructor
- * @param {Object} options - object with following keys:
- *   * gridSpacing (optional) - the spacing of the grid lines in meters (default: 1)
- *   * gridExtent (optional) - the extent of the grid in meters (default: 200)
- *   * gridColor (optional) - the color of the grid lines (default: 'rgba(0,0,0,0.2)')
- *   * gridWidth (optional) - the width of the grid lines (default: 0.02)
- */
 
 var GridLines = /*@__PURE__*/(function (superclass) {
   function GridLines(options) {
@@ -28336,7 +28184,7 @@ var GridLines = /*@__PURE__*/(function (superclass) {
     for (var i$1 = -gridExtent; i$1 <= gridExtent; i$1 += gridSpacing) {
       graphics.moveTo(-gridExtent, -i$1).lineTo(gridExtent, -i$1);
     }
-
+    
     superclass.call(this, graphics);
   }
 

@@ -1,14 +1,18 @@
 /**
- * A Viewer can be used to render an interactive 2D scene to a HTML5 canvas.
- *
- * @constructor
- * @param options - object with following keys:
- *   * divID - the ID of the div to place the viewer in
- *   * width - the initial width, in pixels, of the canvas
- *   * height - the initial height, in pixels, of the canvas
- *   * background (optional) - the color to render the background, like '#efefef'
+ * @fileOverview
+ * @author Russell Toris - rctoris@wpi.edu
  */
 export class Viewer {
+    /**
+     * A Viewer can be used to render an interactive 2D scene to a HTML5 canvas.
+     *
+     * @constructor
+     * @param options - object with following keys:
+     *   * divID - the ID of the div to place the viewer in
+     *   * width - the initial width, in pixels, of the canvas
+     *   * height - the initial height, in pixels, of the canvas
+     *   * background (optional) - the color to render the background, like '#efefef'
+     */
     constructor(options: any);
     width: any;
     height: any;

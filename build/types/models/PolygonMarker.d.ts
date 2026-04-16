@@ -1,18 +1,22 @@
 /**
- * A polygon that can be edited by an end user
- *
- * @constructor
- * @param options - object with following keys:
- *   * pose (optional) - the first pose of the trace
- *   * lineSize (optional) - the width of the lines
- *   * lineColor (optional) - the createjs color of the lines
- *   * pointSize (optional) - the size of the points
- *   * pointColor (optional) - the createjs color of the points
- *   * fillColor (optional) - the createjs color to fill the polygon
- *   * lineCallBack (optional) - callback function for mouse interaction with a line
- *   * pointCallBack (optional) - callback function for mouse interaction with a point
+ * @fileOverview
+ * @author Bart van Vliet - bart@dobots.nl
  */
 export class PolygonMarker extends createjs.Container {
+    /**
+     * A polygon that can be edited by an end user
+     *
+     * @constructor
+     * @param options - object with following keys:
+     *   * pose (optional) - the first pose of the trace
+     *   * lineSize (optional) - the width of the lines
+     *   * lineColor (optional) - the createjs color of the lines
+     *   * pointSize (optional) - the size of the points
+     *   * pointColor (optional) - the createjs color of the points
+     *   * fillColor (optional) - the createjs color to fill the polygon
+     *   * lineCallBack (optional) - callback function for mouse interaction with a line
+     *   * pointCallBack (optional) - callback function for mouse interaction with a point
+     */
     constructor(options: any);
     lineSize: any;
     lineColor: any;
