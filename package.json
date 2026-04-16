@@ -2,7 +2,7 @@
   "name": "ros2d",
   "homepage": "https://robotwebtools.github.io",
   "description": "2D Visualization Library for use with the ROS JavaScript Libraries",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "BSD-3-Clause",
   "main": "./build/ros2d.cjs.js",
   "module": "./build/ros2d.esm.js",
@@ -59,7 +59,7 @@
   },
   "scripts": {
     "build": "rollup -c && npm run build:types",
-    "build:types": "tsc -p tsconfig.json && cp src/index.d.ts build/types/index.d.ts",
+    "build:types": "tsc -p tsconfig.json",
     "doc": "grunt doc",
     "lint": "grunt lint",
     "lint-fix": "grunt lint-fix",

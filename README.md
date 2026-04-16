@@ -98,16 +98,17 @@ or
 ## Development
 
     npm install
-    npm run build
+    npm run build      # Rollup (from src-esm/) + tsc (emit .d.ts)
+    npm test           # Vitest — runs against src/
 
-Add project-specific development instructions here as needed.
+### Source layout
 
-For example, this section may later include:
+Two parallel source trees exist:
 
-- local development workflow
-- build commands
-- test commands
-- example integration usage
+- `src/` — legacy global-namespace pattern (`var ROS2D = ROS2D || {}; ROS2D.X = ...`). Used by the Vitest baseline tests and by `grunt lint` / `grunt doc`.
+- `src-esm/` — ES module pattern (`export class X extends createjs.Y`). Used as the Rollup input and by `tsc` for `.d.ts` emission.
+
+Keep both in sync when making functional changes until one is retired. The upstream `grunt transpile` task that once generated `src-esm/` from `src/` no longer works after the EventEmitter3 migration and is not part of the build script.
 
 ---
 

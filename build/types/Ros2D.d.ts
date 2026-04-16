@@ -1,3 +1,1 @@
-declare namespace ROS2D {
-    let REVISION: string;
-}
+export const REVISION: string;

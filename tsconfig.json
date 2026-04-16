@@ -11,6 +11,6 @@
     "strict": false,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.js"],
+  "include": ["src-esm/**/*.js"],
   "exclude": ["node_modules", "build", "test"]
 }
