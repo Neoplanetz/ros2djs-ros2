@@ -7,7 +7,7 @@
   },
   "globals": {
     "createjs": true,
-    "EventEmitter2": true,
+    "EventEmitter": true,
     "ROS2D": true,
     "ROSLIB": true,
     "ROS3D": true,
