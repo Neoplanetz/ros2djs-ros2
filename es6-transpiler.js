@@ -207,6 +207,17 @@ const superConstructorCalls = {
 const getFileClass = (filepath) => path.basename(filepath, '.js')
 const isFileClass = (filepath, className) => getFileClass(filepath) === className
 
+// Transform table: each entry is a [regex, replacer] pair applied by transpileFile().
+//
+// initialROS2DAssignment:
+//   Target file: src/Ros2D.js only (the library's top-level declaration).
+//   The source declares `var ROS2D = ROS2D || { ...REVISION : 'x.y.z' };` where
+//   the object literal contains a JSDoc block (`@default` / `@description`) between
+//   the opening `{` and the `REVISION` property. The `[\s\S]*?` lazy spans are
+//   required to bridge that multi-line JSDoc — a naive single-line regex cannot
+//   match it. Do NOT replace `[\s\S]*?` with `[^}]*` or `.*`: the JSDoc may add
+//   more properties later, but the invariant is that REVISION's value is captured
+//   and emitted as a single line `export var REVISION = '<semver>';`.
 const transpile = {
   // Replace initial ROS2D assignment
   initialROS2DAssignment: [
