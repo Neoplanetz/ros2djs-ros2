@@ -66,6 +66,7 @@
     "lint": "grunt lint",
     "lint-fix": "grunt lint-fix",
     "transpile": "DEBUG=* grunt transpile",
+    "check:transpile": "rimraf src-esm && grunt transpile && git diff --exit-code -- src-esm/",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "publish": "npm run build"

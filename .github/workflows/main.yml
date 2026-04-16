@@ -25,6 +25,8 @@ jobs:
       run: npm install -g grunt-cli
     - name: Install
       run: npm install
+    - name: Check transpile drift
+      run: npm run check:transpile
     - name: Build
       run: npm run build
     - uses: stefanzweifel/git-auto-commit-action@v5
