@@ -1,5 +1,7 @@
 import * as createjs from 'createjs-module';
 
+// import * as createjs from 'createjs-module';
+
 export var REVISION = '1.0.0';
 
 // convert the given global Stage coordinates to ROS coordinates

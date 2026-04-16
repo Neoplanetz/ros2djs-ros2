@@ -1,3 +1,5 @@
+import * as createjs from 'createjs-module';
+
 /**
  * @fileOverview
  * @author Russell Toris - rctoris@wpi.edu

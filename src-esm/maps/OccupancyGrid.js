@@ -1,19 +1,19 @@
+import * as createjs from 'createjs-module';
+
 /**
  * @fileOverview
  * @author Russell Toris - rctoris@wpi.edu
  */
 
-import * as createjs from 'createjs-module';
-
-/**
- * An OccupancyGrid can convert a ROS occupancy grid message into a createjs Bitmap object.
- *
- * @constructor
- * @param options - object with following keys:
- *   * message - the occupancy grid message
- */
 export class OccupancyGrid extends createjs.Bitmap {
 
+  /**
+   * An OccupancyGrid can convert a ROS occupancy grid message into a createjs Bitmap object.
+   *
+   * @constructor
+   * @param options - object with following keys:
+   *   * message - the occupancy grid message
+   */
   constructor(options) {
     options = options || {};
     var message = options.message;
@@ -80,5 +80,5 @@ export class OccupancyGrid extends createjs.Bitmap {
     // set the pose
     this.x += this.pose.position.x;
     this.y -= this.pose.position.y;
-  }
+  };
 }

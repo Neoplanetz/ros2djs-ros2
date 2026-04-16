@@ -1,25 +1,25 @@
+import * as createjs from 'createjs-module';
+
 /**
  * @fileOverview
  * @author Russell Toris - rctoris@wpi.edu
  */
 
-import * as createjs from 'createjs-module';
-
-/**
- * A navigation arrow is a directed triangle that can be used to display orientation.
- *
- * @constructor
- * @param options - object with following keys:
- *   * size (optional) - the size of the marker
- *   * strokeSize (optional) - the size of the outline
- *   * strokeColor (optional) - the createjs color for the stroke
- *   * fillColor (optional) - the createjs color for the fill
- *   * pulse (optional) - if the marker should "pulse" over time
- */
 export class NavigationArrow extends createjs.Shape {
 
+  /**
+   * A navigation arrow is a directed triangle that can be used to display orientation.
+   *
+   * @constructor
+   * @param options - object with following keys:
+   *   * size (optional) - the size of the marker
+   *   * strokeSize (optional) - the size of the outline
+   *   * strokeColor (optional) - the createjs color for the stroke
+   *   * fillColor (optional) - the createjs color for the fill
+   *   * pulse (optional) - if the marker should "pulse" over time
+   */
   constructor(options) {
-    var that;
+    var that = this;
     options = options || {};
     var size = options.size || 10;
     var strokeSize = options.strokeSize || 3;
@@ -42,7 +42,6 @@ export class NavigationArrow extends createjs.Shape {
 
     // create the shape
     super(graphics);
-    that = this;
 
     // check if we are pulsing
     if (pulse) {
@@ -61,5 +60,5 @@ export class NavigationArrow extends createjs.Shape {
         }
       });
     }
-  }
+  };
 }

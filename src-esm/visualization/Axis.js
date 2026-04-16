@@ -1,22 +1,20 @@
-/**
- * An Axis object is used to display X and Y axes in a 2D viewer.
- * It inherits from createjs.Container.
- *
- * @constructor
- * @param {Object} options - object with following keys:
- *   * axisLength (optional) - the length of the axes in meters (default: 1.5)
- *   * axisWidth (optional) - the width of the axis lines (default: 0.05)
- *   * arrowSize (optional) - the size of the arrow heads (default: 0.2)
- *   * xColor (optional) - the color of the X-axis (default: 'red')
- *   * yColor (optional) - the color of the Y-axis (default: 'green')
- */
-
 import * as createjs from 'createjs-module';
 
 export class Axis extends createjs.Container {
 
+  /**
+   * An Axis object is used to display X and Y axes in a 2D viewer.
+   * It inherits from createjs.Container.
+   *
+   * @constructor
+   * @param {Object} options - object with following keys:
+   *   * axisLength (optional) - the length of the axes in meters (default: 1.5)
+   *   * axisWidth (optional) - the width of the axis lines (default: 0.05)
+   *   * arrowSize (optional) - the size of the arrow heads (default: 0.2)
+   *   * xColor (optional) - the color of the X-axis (default: 'red')
+   *   * yColor (optional) - the color of the Y-axis (default: 'green')
+   */
   constructor(options) {
-    super();
     options = options || {};
     const axisLength = options.axisLength || 1.5;
     const axisWidth = options.axisWidth || 0.05;
@@ -63,6 +61,7 @@ export class Axis extends createjs.Container {
     yLabel.scaleX = 0.5;
     yLabel.scaleY = 0.5;
 
+    super();
     this.addChild(xAxis, yAxis, xLabel, yLabel);
-  }
+  };
 }

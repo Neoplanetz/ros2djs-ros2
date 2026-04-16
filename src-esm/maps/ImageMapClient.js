@@ -1,27 +1,28 @@
+import EventEmitter from 'eventemitter3';
+import * as createjs from 'createjs-module';
+
+import { ImageMap } from './ImageMap'
+
 /**
  * @fileOverview
  * @author Russell Toris - rctoris@wpi.edu
  */
 
-import EventEmitter from 'eventemitter3';
-import * as createjs from 'createjs-module';
-import { ImageMap } from './ImageMap';
-
-/**
- * A image map is a PNG image scaled to fit to the dimensions of a OccupancyGrid.
- *
- * Emits the following events:
- *   * 'change' - there was an update or change in the map
- *
- * @constructor
- * @param options - object with following keys:
- *   * ros - the ROSLIB.Ros connection handle
- *   * topic (optional) - the map meta data topic to listen to
- *   * image - the image URL to load
- *   * rootObject (optional) - the root object to add this marker to
- */
 export class ImageMapClient extends EventEmitter {
 
+  /**
+   * A image map is a PNG image scaled to fit to the dimensions of a OccupancyGrid.
+   *
+   * Emits the following events:
+   *   * 'change' - there was an update or change in the map
+   *
+   * @constructor
+   * @param options - object with following keys:
+   *   * ros - the ROSLIB.Ros connection handle
+   *   * topic (optional) - the map meta data topic to listen to
+   *   * image - the image URL to load
+   *   * rootObject (optional) - the root object to add this marker to
+   */
   constructor(options) {
     super();
     options = options || {};
@@ -54,5 +55,5 @@ export class ImageMapClient extends EventEmitter {
     this.rootObject.addChild(this.currentImage);
     // Emit the 'change' event asynchronously to ensure listeners are registered
     setTimeout(() => { this.emit('change'); }, 0);
-  }
+  };
 }

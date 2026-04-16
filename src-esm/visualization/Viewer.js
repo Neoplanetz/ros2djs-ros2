@@ -1,22 +1,22 @@
+import * as createjs from 'createjs-module';
+
 /**
  * @fileOverview
  * @author Russell Toris - rctoris@wpi.edu
  */
 
-import * as createjs from 'createjs-module';
-
-/**
- * A Viewer can be used to render an interactive 2D scene to a HTML5 canvas.
- *
- * @constructor
- * @param options - object with following keys:
- *   * divID - the ID of the div to place the viewer in
- *   * width - the initial width, in pixels, of the canvas
- *   * height - the initial height, in pixels, of the canvas
- *   * background (optional) - the color to render the background, like '#efefef'
- */
 export class Viewer {
 
+  /**
+   * A Viewer can be used to render an interactive 2D scene to a HTML5 canvas.
+   *
+   * @constructor
+   * @param options - object with following keys:
+   *   * divID - the ID of the div to place the viewer in
+   *   * width - the initial width, in pixels, of the canvas
+   *   * height - the initial height, in pixels, of the canvas
+   *   * background (optional) - the color to render the background, like '#efefef'
+   */
   constructor(options) {
     var that = this;
     options = options || {};
@@ -43,7 +43,7 @@ export class Viewer {
     // update at 30fps
     createjs.Ticker.framerate = 30;
     createjs.Ticker.addEventListener('tick', this.scene);
-  }
+  };
 
   /**
    * Add the given createjs object to the global scene in the viewer.
@@ -52,7 +52,7 @@ export class Viewer {
    */
   addObject(object) {
     this.scene.addChild(object);
-  }
+  };
 
   /**
    * Scale the scene to fit the given width and height into the current canvas.
@@ -68,7 +68,7 @@ export class Viewer {
     // save scene scaling
     this.scene.scaleX = this.width / width;
     this.scene.scaleY = this.height / height;
-  }
+  };
 
   /**
    * Shift the main view of the canvas by the given amount. This is based on the
@@ -85,5 +85,5 @@ export class Viewer {
     // shift scene by scaling the desired offset
     this.scene.x -= (x * this.scene.scaleX);
     this.scene.y += (y * this.scene.scaleY);
-  }
+  };
 }

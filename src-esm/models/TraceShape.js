@@ -1,52 +1,52 @@
+import * as createjs from 'createjs-module';
+
 /**
  * @fileOverview
  * @author Bart van Vliet - bart@dobots.nl
  */
 
-import * as createjs from 'createjs-module';
-
-/**
- * A trace of poses, handy to see where a robot has been
- *
- * @constructor
- * @param options - object with following keys:
- *   * pose (optional) - the first pose of the trace
- *   * strokeSize (optional) - the size of the outline
- *   * strokeColor (optional) - the createjs color for the stroke
- *   * maxPoses (optional) - the maximum number of poses to keep, 0 for infinite
- *   * minDist (optional) - the minimal distance between poses to use the pose for drawing (default 0.05)
- */
 export class TraceShape extends createjs.Shape {
 
+  /**
+   * A trace of poses, handy to see where a robot has been
+   *
+   * @constructor
+   * @param options - object with following keys:
+   *   * pose (optional) - the first pose of the trace
+   *   * strokeSize (optional) - the size of the outline
+   *   * strokeColor (optional) - the createjs color for the stroke
+   *   * maxPoses (optional) - the maximum number of poses to keep, 0 for infinite
+   *   * minDist (optional) - the minimal distance between poses to use the pose for drawing (default 0.05)
+   */
   constructor(options) {
-    options = options || {};
-    var pose = options.pose;
+  //	var that = this;
+  	options = options || {};
+  	var pose = options.pose;
+  	this.strokeSize = options.strokeSize || 3;
+  	this.strokeColor = options.strokeColor || createjs.Graphics.getRGB(0, 0, 0);
+  	this.maxPoses = (options.maxPoses || options.maxPoses === 0) ? options.maxPoses : 100;
+  	this.minDist = options.minDist || 0.05;
 
-    var graphics = new createjs.Graphics();
+  	// Store minDist as the square of it
+  	this.minDist = this.minDist*this.minDist;
 
-    super(graphics);
+  	// Array of the poses
+  	// TODO: do we need this?
+  	this.poses = [];
 
-    this.strokeSize = options.strokeSize || 3;
-    this.strokeColor = options.strokeColor || createjs.Graphics.getRGB(0, 0, 0);
-    this.maxPoses = (options.maxPoses || options.maxPoses === 0) ? options.maxPoses : 100;
-    this.minDist = options.minDist || 0.05;
+  	// Create the graphics
+  	this.graphics = new createjs.Graphics();
+  	this.graphics.setStrokeStyle(this.strokeSize);
+  	this.graphics.beginStroke(this.strokeColor);
 
-    // Store minDist as the square of it
-    this.minDist = this.minDist*this.minDist;
+  	// Add first pose if given
+  	if (pose !== null && typeof pose !== 'undefined') {
+  		this.poses.push(pose);
+  	}
 
-    // Array of the poses
-    this.poses = [];
-
-    // Create the graphics
-    this.graphics = graphics;
-    this.graphics.setStrokeStyle(this.strokeSize);
-    this.graphics.beginStroke(this.strokeColor);
-
-    // Add first pose if given
-    if (pose !== null && typeof pose !== 'undefined') {
-      this.poses.push(pose);
-    }
-  }
+  	// Create the shape
+  	super(this.graphics);
+  };
 
   /**
    * Adds a pose to the trace and updates the graphics
@@ -54,40 +54,40 @@ export class TraceShape extends createjs.Shape {
    * @param pose of type ROSLIB.Pose
    */
   addPose(pose) {
-    var last = this.poses.length-1;
-    if (last < 0) {
-      this.poses.push(pose);
-      this.graphics.moveTo(pose.position.x / this.scaleX, pose.position.y / -this.scaleY);
-    }
-    else {
-      var prevX = this.poses[last].position.x;
-      var prevY = this.poses[last].position.y;
-      var dx = (pose.position.x - prevX);
-      var dy = (pose.position.y - prevY);
-      if (dx*dx + dy*dy > this.minDist) {
-        this.graphics.lineTo(pose.position.x / this.scaleX, pose.position.y / -this.scaleY);
-        this.poses.push(pose);
-      }
-    }
-    if (this.maxPoses > 0 && this.maxPoses < this.poses.length) {
-      this.popFront();
-    }
-  }
+  	var last = this.poses.length-1;
+  	if (last < 0) {
+  		this.poses.push(pose);
+  		this.graphics.moveTo(pose.position.x / this.scaleX, pose.position.y / -this.scaleY);
+  	}
+  	else {
+  		var prevX = this.poses[last].position.x;
+  		var prevY = this.poses[last].position.y;
+  		var dx = (pose.position.x - prevX);
+  		var dy = (pose.position.y - prevY);
+  		if (dx*dx + dy*dy > this.minDist) {
+  			this.graphics.lineTo(pose.position.x / this.scaleX, pose.position.y / -this.scaleY);
+  			this.poses.push(pose);
+  		}
+  	}
+  	if (this.maxPoses > 0 && this.maxPoses < this.poses.length) {
+  		this.popFront();
+  	}
+  };
 
   /**
    * Removes front pose and updates the graphics
    */
   popFront() {
-    if (this.poses.length > 0) {
-      this.poses.shift();
-      // TODO: shift drawing instructions rather than doing it all over
-      this.graphics.clear();
-      this.graphics.setStrokeStyle(this.strokeSize);
-      this.graphics.beginStroke(this.strokeColor);
-      this.graphics.lineTo(this.poses[0].position.x / this.scaleX, this.poses[0].position.y / -this.scaleY);
-      for (var i=1; i<this.poses.length; ++i) {
-        this.graphics.lineTo(this.poses[i].position.x / this.scaleX, this.poses[i].position.y / -this.scaleY);
-      }
-    }
-  }
+  	if (this.poses.length > 0) {
+  		this.poses.shift();
+  		// TODO: shift drawing instructions rather than doing it all over
+  		this.graphics.clear();
+  		this.graphics.setStrokeStyle(this.strokeSize);
+  		this.graphics.beginStroke(this.strokeColor);
+  		this.graphics.lineTo(this.poses[0].position.x / this.scaleX, this.poses[0].position.y / -this.scaleY);
+  		for (var i=1; i<this.poses.length; ++i) {
+  			this.graphics.lineTo(this.poses[i].position.x / this.scaleX, this.poses[i].position.y / -this.scaleY);
+  		}
+  	}
+  };
 }
