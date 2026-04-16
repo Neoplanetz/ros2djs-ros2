@@ -258,7 +258,7 @@ const transpile = {
   ],
   // Track external dependencies for import injection
   externalDependencies: (filepath) => [
-    /(.*)(EventEmitter2|ROSLIB|createjs).*/g,
+    /(.*)(EventEmitter|ROSLIB|createjs).*/g,
     (match, $preStuffs, $dep) => {
 
       if (/^\s*(?:\*|\/\/)/.test($preStuffs)) {
@@ -293,6 +293,21 @@ const transpile = {
     /Object\.assign\((\w+)\.prototype,\s*(.*)\.prototype\);/g,
     // to:
     // set InteractiveMarker to subclass from THREE.EventDispatcher in inheritance index
+    (match, $1, $2) => {
+      // track $1 extends $2
+      inheritance.track($1, $2)
+      // remove it
+      return ''
+    }
+  ],
+  // Replace Object.setPrototypeOf with class extension
+  buildInheritanceIndexViaSetPrototypeOf: [
+    // from:
+    // Object.setPrototypeOf(ROS2D.OccupancyGridClient.prototype, EventEmitter.prototype);
+    // (ROS2D. prefix is stripped by internalDependencies before this runs)
+    /Object\.setPrototypeOf\((?:ROS2D\.)?(\w+)\.prototype,\s*(.*)\.prototype\);[\r\n]?/g,
+    // to:
+    // set OccupancyGridClient to subclass from EventEmitter in inheritance index
     (match, $1, $2) => {
       // track $1 extends $2
       inheritance.track($1, $2)
@@ -505,8 +520,8 @@ const transpile = {
               importString = "import * as ROSLIB from 'roslib';"
               break;
             }
-            case 'EventEmitter2': {
-              importString = "import EventEmitter2 from 'eventemitter2';"
+            case 'EventEmitter': {
+              importString = "import EventEmitter from 'eventemitter3';"
               break;
             }
             case 'createjs': {
@@ -636,6 +651,7 @@ const transpileToEs6 = function (content, filepath, grunt) {
     .replace(...transpileExternalDependencies)
     .replace(...transpile.buildInheritanceIndexViaProto)
     .replace(...transpile.buildInheritanceIndexViaObjectAssign)
+    .replace(...transpile.buildInheritanceIndexViaSetPrototypeOf)
     .replace(...transpile.methods)
     .replace(...transpileConstructors)
     .replace(...transpileSuperCalls)
