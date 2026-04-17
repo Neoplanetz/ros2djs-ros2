@@ -1,136 +1,108 @@
 # ros2djs-ros2
 
-`ros2djs-ros2` is a ROS 2-focused fork and ongoing evolution of [`RobotWebTools/ros2djs`](https://github.com/RobotWebTools/ros2djs).
+A 2D visualization library for ROS 2 web applications, built on [EaselJS](https://createjs.com/easeljs) and [roslibjs](https://github.com/RobotWebTools/roslibjs). Forked from [RobotWebTools/ros2djs](https://github.com/RobotWebTools/ros2djs).
 
-This project started from the original `ros2djs` codebase to improve practical usability in modern ROS 2 environments. While the upstream project provided a valuable foundation for browser-based 2D robot visualization, this repository is being maintained and extended independently with a stronger focus on ROS 2 compatibility, maintainability, and future feature development.
+## Background
 
-Over time, this repository is expected to move beyond a simple fork and continue as a more independent project.
-
----
-
-## Overview
-
-`ros2djs-ros2` is intended for web-based 2D visualization scenarios in ROS 2 applications.
-
-The goal of this repository is to preserve the usefulness of the original `ros2djs` idea while making it more practical for current ROS 2 workflows. In addition to compatibility-oriented work, this project may also introduce project-specific improvements and features that go beyond the scope of the original upstream repository.
-
----
-
-## Why this repository exists
-
-The original `ros2djs` project offered a solid starting point for web-based 2D robot visualization. However, when applying it to real ROS 2-based environments, additional work became necessary.
-
-This repository exists to address that need by focusing on:
-
-- ROS 2-oriented compatibility improvements
-- independent maintenance and bug fixes
-- practical usability for modern web-based robotics projects
-- incremental feature expansion where needed
-- a clearer path toward long-term maintainability
-
-This means the project is not only tracking an upstream fork history, but also evolving according to its own roadmap.
-
----
-
-## Project status
-
-This repository is under active development.
-
-Current direction includes:
-
-- improving ROS 2 compatibility
-- refining existing behavior for practical use
-- adding project-specific functionality
-- preparing for a more independent release and maintenance strategy
-
-As the implementation continues to diverge, this repository may eventually transition into a fully independent project rather than remaining only as a fork.
-
----
-
-## Relationship to the original project
-
-This project is based on the original work from RobotWebTools:
-
-- Original repository: [`RobotWebTools/ros2djs`](https://github.com/RobotWebTools/ros2djs)
-
-This repository respects the original project and acknowledges its role in the ROS web ecosystem. At the same time, development here is intentionally focused on current ROS 2 usage and future extensibility, even when that leads to behavior, structure, or features that differ from upstream.
-
----
-
-## Features
-
-Current and planned capabilities include:
-
-- browser-based 2D visualization support for ROS 2 applications
-- ROS 2-oriented compatibility updates
-- maintenance and bug-fix improvements
-- project-specific extensions beyond the original upstream scope
-- a foundation for future visualization-related enhancements
-
-> This section can be expanded as more concrete features are added.
-
----
-
-## Roadmap
-
-- [x] Initial fork and ROS 2 adaptation
-- [x] Basic independent maintenance
-- [x] Project-specific modifications
-- [ ] Additional visualization features
-- [ ] API and structure cleanup
-- [ ] Improved packaging and release workflow
-- [ ] Independent repository transition
-
----
+The original `ros2djs` provided browser-based 2D visualization for ROS, but upstream development has stopped. This repository continues that work with a focus on ROS 2 compatibility: the build pipeline has been modernized (ES modules, Rollup, TypeScript declarations), the event system migrated from `eventemitter2` to `eventemitter3`, and the single-source transpile workflow restored so that `src/` is the only hand-edited source tree. Over time this project may transition into a fully independent package.
 
 ## Installation
 
-> Installation steps may change as the project evolves.
+```bash
+npm install ros2d
+```
 
-    npm install
+Peer dependency: [`roslib`](https://github.com/RobotWebTools/roslibjs) `^2.0.0`.
 
-or
+### ESM
 
-    yarn install
+```js
+import { Viewer, OccupancyGridClient } from 'ros2d';
+```
 
----
+### CommonJS
+
+```js
+const { Viewer, OccupancyGridClient } = require('ros2d');
+```
+
+### Browser (IIFE)
+
+```html
+<script src="path/to/ros2d.min.js"></script>
+<script>
+  var viewer = new ROS2D.Viewer({ /* ... */ });
+</script>
+```
+
+## Quick Start
+
+```js
+import ROSLIB from 'roslib';
+import { Viewer, OccupancyGridClient } from 'ros2d';
+
+// Connect to rosbridge
+const ros = new ROSLIB.Ros({ url: 'ws://localhost:9090' });
+
+// Create a 2D viewer attached to a <div id="map">
+const viewer = new Viewer({
+  divID: 'map',
+  width: 640,
+  height: 480,
+});
+
+// Subscribe to an occupancy grid and render it
+const gridClient = new OccupancyGridClient({
+  ros,
+  rootObject: viewer.scene,
+});
+
+gridClient.on('change', () => {
+  viewer.scaleToDimensions(gridClient.currentGrid.width, gridClient.currentGrid.height);
+  viewer.shift(gridClient.currentGrid.pose.position.x, gridClient.currentGrid.pose.position.y);
+});
+```
 
 ## Development
 
-    npm install
-    npm run build      # Rollup (from src-esm/) + tsc (emit .d.ts)
-    npm test           # Vitest — runs against src/
+```bash
+npm install
+npm run build      # prebuild (transpile) + rollup + tsc
+npm test           # vitest (22 tests)
+npm run lint       # eslint via grunt
+```
 
-### Source layout
+### Source pipeline
 
-Two parallel source trees exist:
+```
+src/                 single source of truth (legacy global-namespace pattern)
+  ↓  grunt transpile (prebuild hook: rimraf src-esm && grunt transpile)
+src-esm/             auto-generated ES modules (gitignored — do not edit)
+  ↓  rollup
+build/
+  ros2d.cjs.js       CommonJS
+  ros2d.esm.js       ES module
+  ros2d.min.js       IIFE (browser <script>)
+  types/             TypeScript declarations (tsc)
+```
 
-- `src/` — legacy global-namespace pattern (`var ROS2D = ROS2D || {}; ROS2D.X = ...`). Used by the Vitest baseline tests and by `grunt lint` / `grunt doc`.
-- `src-esm/` — ES module pattern (`export class X extends createjs.Y`). Used as the Rollup input and by `tsc` for `.d.ts` emission.
+Edit only files in `src/`. The `prebuild` hook regenerates `src-esm/` automatically before every build. A `check:transpile` CI guardrail ensures no hand-edited `src-esm/` files can be committed.
 
-Keep both in sync when making functional changes until one is retired. The upstream `grunt transpile` task that once generated `src-esm/` from `src/` no longer works after the EventEmitter3 migration and is not part of the build script.
+## Scripts
 
----
-
-## Notes
-
-- This repository originated from the `RobotWebTools/ros2djs` codebase.
-- It is being maintained with a stronger focus on ROS 2 compatibility and practical usage.
-- Future changes may introduce features or structural decisions that are not part of the original upstream roadmap.
-- Long-term, this project may become a fully independent repository.
-
----
+| Script | Description |
+|--------|-------------|
+| `npm run build` | Full pipeline: prebuild + rollup + tsc |
+| `npm test` | Run vitest test suite |
+| `npm run lint` | ESLint via grunt |
+| `npm run transpile` | Regenerate `src-esm/` with debug output |
+| `npm run check:transpile` | CI guardrail: regenerate + assert no git diff |
+| `npm run doc` | Rebuild JSDoc |
 
 ## Contributing
 
-At this stage, development is primarily driven by the needs of this project’s ROS 2-focused direction.
-
-Issues and suggestions may still be useful, but the implementation roadmap is currently managed independently from the original upstream repository.
-
----
+Issues and pull requests are welcome. Please run `npm run lint && npm test` before submitting.
 
 ## License
 
-This project is based on the original upstream work and follows the applicable license terms of that codebase unless otherwise noted.
-
-Please see the [LICENSE](./LICENSE) file for details.
+BSD-3-Clause. Based on original work by Robert Bosch LLC, Willow Garage Inc., Worcester Polytechnic Institute, and Yujin Robot. See [LICENSE](./LICENSE) for details.
