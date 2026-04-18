@@ -15,12 +15,18 @@
  * @param options - object with the following keys:
  *   * ros - the ROSLIB.Ros connection handle
  *   * topic (optional) - the pose topic, defaults to '/pose'
- *   * rootObject (optional) - the root createjs object to attach the arrow to
- *   * size (optional) - forwarded to ROS2D.NavigationArrow
- *   * strokeSize (optional) - forwarded to ROS2D.NavigationArrow
- *   * strokeColor (optional) - forwarded to ROS2D.NavigationArrow
- *   * fillColor (optional) - forwarded to ROS2D.NavigationArrow
- *   * pulse (optional) - forwarded to ROS2D.NavigationArrow
+ *   * rootObject (optional) - the root createjs object to attach the marker to
+ *   * shape (optional) - a pre-built createjs DisplayObject to use as the
+ *       pose marker (e.g. ROS2D.NavigationImage with a custom SVG, or any
+ *       custom Bitmap/Shape/Container that exposes .x, .y, .rotation,
+ *       and .visible). If omitted a default ROS2D.NavigationArrow is
+ *       created from the size / strokeSize / strokeColor / fillColor /
+ *       pulse options below.
+ *   * size (optional) - forwarded to the default ROS2D.NavigationArrow
+ *   * strokeSize (optional) - forwarded to the default ROS2D.NavigationArrow
+ *   * strokeColor (optional) - forwarded to the default ROS2D.NavigationArrow
+ *   * fillColor (optional) - forwarded to the default ROS2D.NavigationArrow
+ *   * pulse (optional) - forwarded to the default ROS2D.NavigationArrow
  */
 ROS2D.PoseStampedClient = function(options) {
   EventEmitter.call(this);
@@ -30,17 +36,23 @@ ROS2D.PoseStampedClient = function(options) {
   this.topicName = options.topic || '/pose';
   this.rootObject = options.rootObject || new createjs.Container();
 
-  this.arrow = new ROS2D.NavigationArrow({
-    size: options.size,
-    strokeSize: options.strokeSize,
-    strokeColor: options.strokeColor,
-    fillColor: options.fillColor,
-    pulse: options.pulse
-  });
-  // Keep the arrow hidden until the first message arrives so it does not
+  if (options.shape) {
+    this.marker = options.shape;
+  } else {
+    this.marker = new ROS2D.NavigationArrow({
+      size: options.size,
+      strokeSize: options.strokeSize,
+      strokeColor: options.strokeColor,
+      fillColor: options.fillColor,
+      pulse: options.pulse
+    });
+  }
+  // Backwards-compatible alias — older callers referenced .arrow directly.
+  this.arrow = this.marker;
+  // Keep the marker hidden until the first message arrives so it does not
   // flash at the origin on startup.
-  this.arrow.visible = false;
-  this.rootObject.addChild(this.arrow);
+  this.marker.visible = false;
+  this.rootObject.addChild(this.marker);
 
   this.rosTopic = new ROSLIB.Topic({
     ros: ros,
@@ -53,23 +65,23 @@ ROS2D.PoseStampedClient = function(options) {
     if (!pose || !pose.position) {
       return;
     }
-    that.arrow.x = pose.position.x;
-    that.arrow.y = -pose.position.y;
-    that.arrow.rotation = ROS2D.quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
-    that.arrow.visible = true;
+    that.marker.x = pose.position.x;
+    that.marker.y = -pose.position.y;
+    that.marker.rotation = ROS2D.quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
+    that.marker.visible = true;
     that.emit('change');
   });
 };
 
 /**
- * Detach from the topic and remove the managed arrow from the rootObject.
+ * Detach from the topic and remove the managed marker from the rootObject.
  */
 ROS2D.PoseStampedClient.prototype.unsubscribe = function() {
   if (this.rosTopic) {
     this.rosTopic.unsubscribe();
   }
-  if (this.arrow && this.rootObject) {
-    this.rootObject.removeChild(this.arrow);
+  if (this.marker && this.rootObject) {
+    this.rootObject.removeChild(this.marker);
   }
 };
 

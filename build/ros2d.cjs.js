@@ -27326,6 +27326,126 @@ var OccupancyGridSrvClient = /*@__PURE__*/(function (EventEmitter) {
 
 /**
  * @fileOverview
+ * @author Russell Toris - rctoris@wpi.edu
+ */
+
+var NavigationArrow = /*@__PURE__*/(function (superclass) {
+  function NavigationArrow(options) {
+    var that = this;
+    options = options || {};
+    var size = options.size || 10;
+    var strokeSize = options.strokeSize || 3;
+    var strokeColor = options.strokeColor || createjsExports.Graphics.getRGB(0, 0, 0);
+    var fillColor = options.fillColor || createjsExports.Graphics.getRGB(255, 0, 0);
+    var pulse = options.pulse;
+
+    // draw the arrow
+    var graphics = new createjsExports.Graphics();
+    // line width
+    graphics.setStrokeStyle(strokeSize);
+    graphics.moveTo(-size / 2.0, -size / 2.0);
+    graphics.beginStroke(strokeColor);
+    graphics.beginFill(fillColor);
+    graphics.lineTo(size, 0);
+    graphics.lineTo(-size / 2.0, size / 2.0);
+    graphics.closePath();
+    graphics.endFill();
+    graphics.endStroke();
+
+    // create the shape
+    superclass.call(this, graphics);
+
+    // check if we are pulsing
+    if (pulse) {
+      // have the model "pulse"
+      var growCount = 0;
+      var growing = true;
+      createjsExports.Ticker.addEventListener('tick', function() {
+        if (growing) {
+          that.scaleX *= 1.035;
+          that.scaleY *= 1.035;
+          growing = (++growCount < 10);
+        } else {
+          that.scaleX /= 1.035;
+          that.scaleY /= 1.035;
+          growing = (--growCount < 0);
+        }
+      });
+    }
+  }
+
+  if ( superclass ) NavigationArrow.__proto__ = superclass;
+  NavigationArrow.prototype = Object.create( superclass && superclass.prototype );
+  NavigationArrow.prototype.constructor = NavigationArrow;
+
+  return NavigationArrow;
+}(createjsExports.Shape));
+
+var OdometryClient = /*@__PURE__*/(function (EventEmitter) {
+  function OdometryClient(options) {
+    EventEmitter.call(this);
+    options = options || {};
+    var that = this;
+    var ros = options.ros;
+    this.topicName = options.topic || '/odom';
+    this.rootObject = options.rootObject || new createjsExports.Container();
+
+    if (options.shape) {
+      this.marker = options.shape;
+    } else {
+      this.marker = new NavigationArrow({
+        size: options.size,
+        strokeSize: options.strokeSize,
+        strokeColor: options.strokeColor,
+        fillColor: options.fillColor,
+        pulse: options.pulse
+      });
+    }
+    this.marker.visible = false;
+    this.rootObject.addChild(this.marker);
+
+    this.rosTopic = new ROSLIB__namespace.Topic({
+      ros: ros,
+      name: this.topicName,
+      messageType: 'nav_msgs/Odometry'
+    });
+
+    this.rosTopic.subscribe(function(message) {
+      // nav_msgs/Odometry wraps the actual pose one level deeper than
+      // geometry_msgs/PoseStamped: message.pose is a PoseWithCovariance,
+      // whose `.pose` field holds the geometry_msgs/Pose we want.
+      var pose = message && message.pose && message.pose.pose;
+      if (!pose || !pose.position) {
+        return;
+      }
+      that.marker.x = pose.position.x;
+      that.marker.y = -pose.position.y;
+      that.marker.rotation = quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
+      that.marker.visible = true;
+      that.emit('change');
+    });
+  }
+
+  if ( EventEmitter ) OdometryClient.__proto__ = EventEmitter;
+  OdometryClient.prototype = Object.create( EventEmitter && EventEmitter.prototype );
+  OdometryClient.prototype.constructor = OdometryClient;
+  /**
+   * Detach from the topic and remove the managed marker from the rootObject.
+   */
+  OdometryClient.prototype.unsubscribe = function unsubscribe () {
+    if (this.rosTopic) {
+      this.rosTopic.unsubscribe();
+    }
+    if (this.marker && this.rootObject) {
+      this.rootObject.removeChild(this.marker);
+    }
+  };
+
+  return OdometryClient;
+}(EventEmitter));
+
+/**
+ * @fileOverview
  * @author Bart van Vliet - bart@dobots.nl
  */
 
@@ -27422,63 +27542,6 @@ var PathClient = /*@__PURE__*/(function (EventEmitter) {
   return PathClient;
 }(EventEmitter));
 
-/**
- * @fileOverview
- * @author Russell Toris - rctoris@wpi.edu
- */
-
-var NavigationArrow = /*@__PURE__*/(function (superclass) {
-  function NavigationArrow(options) {
-    var that = this;
-    options = options || {};
-    var size = options.size || 10;
-    var strokeSize = options.strokeSize || 3;
-    var strokeColor = options.strokeColor || createjsExports.Graphics.getRGB(0, 0, 0);
-    var fillColor = options.fillColor || createjsExports.Graphics.getRGB(255, 0, 0);
-    var pulse = options.pulse;
-
-    // draw the arrow
-    var graphics = new createjsExports.Graphics();
-    // line width
-    graphics.setStrokeStyle(strokeSize);
-    graphics.moveTo(-size / 2.0, -size / 2.0);
-    graphics.beginStroke(strokeColor);
-    graphics.beginFill(fillColor);
-    graphics.lineTo(size, 0);
-    graphics.lineTo(-size / 2.0, size / 2.0);
-    graphics.closePath();
-    graphics.endFill();
-    graphics.endStroke();
-
-    // create the shape
-    superclass.call(this, graphics);
-
-    // check if we are pulsing
-    if (pulse) {
-      // have the model "pulse"
-      var growCount = 0;
-      var growing = true;
-      createjsExports.Ticker.addEventListener('tick', function() {
-        if (growing) {
-          that.scaleX *= 1.035;
-          that.scaleY *= 1.035;
-          growing = (++growCount < 10);
-        } else {
-          that.scaleX /= 1.035;
-          that.scaleY /= 1.035;
-          growing = (--growCount < 0);
-        }
-      });
-    }
-  }
-
-  if ( superclass ) NavigationArrow.__proto__ = superclass;
-  NavigationArrow.prototype = Object.create( superclass && superclass.prototype );
-  NavigationArrow.prototype.constructor = NavigationArrow;
-
-  return NavigationArrow;
-}(createjsExports.Shape));
-
 var PoseStampedClient = /*@__PURE__*/(function (EventEmitter) {
   function PoseStampedClient(options) {
     EventEmitter.call(this);
@@ -27488,17 +27551,23 @@ var PoseStampedClient = /*@__PURE__*/(function (EventEmitter) {
     this.topicName = options.topic || '/pose';
     this.rootObject = options.rootObject || new createjsExports.Container();
 
-    this.arrow = new NavigationArrow({
-      size: options.size,
-      strokeSize: options.strokeSize,
-      strokeColor: options.strokeColor,
-      fillColor: options.fillColor,
-      pulse: options.pulse
-    });
-    // Keep the arrow hidden until the first message arrives so it does not
+    if (options.shape) {
+      this.marker = options.shape;
+    } else {
+      this.marker = new NavigationArrow({
+        size: options.size,
+        strokeSize: options.strokeSize,
+        strokeColor: options.strokeColor,
+        fillColor: options.fillColor,
+        pulse: options.pulse
+      });
+    }
+    // Backwards-compatible alias — older callers referenced .arrow directly.
+    this.arrow = this.marker;
+    // Keep the marker hidden until the first message arrives so it does not
     // flash at the origin on startup.
-    this.arrow.visible = false;
-    this.rootObject.addChild(this.arrow);
+    this.marker.visible = false;
+    this.rootObject.addChild(this.marker);
 
     this.rosTopic = new ROSLIB__namespace.Topic({
       ros: ros,
@@ -27511,10 +27580,10 @@ var PoseStampedClient = /*@__PURE__*/(function (EventEmitter) {
       if (!pose || !pose.position) {
         return;
       }
-      that.arrow.x = pose.position.x;
-      that.arrow.y = -pose.position.y;
-      that.arrow.rotation = quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
-      that.arrow.visible = true;
+      that.marker.x = pose.position.x;
+      that.marker.y = -pose.position.y;
+      that.marker.rotation = quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
+      that.marker.visible = true;
       that.emit('change');
     });
   }
@@ -27523,14 +27592,14 @@ var PoseStampedClient = /*@__PURE__*/(function (EventEmitter) {
   PoseStampedClient.prototype = Object.create( EventEmitter && EventEmitter.prototype );
   PoseStampedClient.prototype.constructor = PoseStampedClient;
   /**
-   * Detach from the topic and remove the managed arrow from the rootObject.
+   * Detach from the topic and remove the managed marker from the rootObject.
    */
   PoseStampedClient.prototype.unsubscribe = function unsubscribe () {
     if (this.rosTopic) {
       this.rosTopic.unsubscribe();
     }
-    if (this.arrow && this.rootObject) {
-      this.rootObject.removeChild(this.arrow);
+    if (this.marker && this.rootObject) {
+      this.rootObject.removeChild(this.marker);
     }
   };
 
@@ -28732,6 +28801,7 @@ exports.NavigationImage = NavigationImage;
 exports.OccupancyGrid = OccupancyGrid;
 exports.OccupancyGridClient = OccupancyGridClient;
 exports.OccupancyGridSrvClient = OccupancyGridSrvClient;
+exports.OdometryClient = OdometryClient;
 exports.PanView = PanView;
 exports.PathClient = PathClient;
 exports.PathShape = PathShape;

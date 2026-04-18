@@ -7,6 +7,7 @@ export * from './maps/OccupancyGrid'
 export * from './maps/OccupancyGridClient'
 export * from './maps/OccupancyGridSrvClient'
 
+export * from './clients/OdometryClient'
 export * from './clients/PathClient'
 export * from './clients/PoseStampedClient'
 export * from './clients/PoseArrayClient'
