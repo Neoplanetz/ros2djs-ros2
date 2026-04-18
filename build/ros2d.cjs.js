@@ -26620,8 +26620,8 @@ createjsExports.Stage.prototype.rosToGlobal = function(pos) {
   };
 };
 
-// convert a ROS quaternion to theta in degrees
-createjsExports.Stage.prototype.rosQuaternionToGlobalTheta = function(orientation) {
+// convert a ROS quaternion to theta in degrees (pure helper; no Stage instance required)
+var quaternionToGlobalTheta = function(orientation) {
   // See https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Rotation_matrices
   // here we use [x y z] = R * [1 0 0]
   var q0 = orientation.w;
@@ -26630,6 +26630,10 @@ createjsExports.Stage.prototype.rosQuaternionToGlobalTheta = function(orientatio
   var q3 = orientation.z;
   // Canvas rotation is clock wise and in degrees
   return -Math.atan2(2 * (q0 * q3 + q1 * q2), 1 - 2 * (q2 * q2 + q3 * q3)) * 180.0 / Math.PI;
+};
+
+createjsExports.Stage.prototype.rosQuaternionToGlobalTheta = function(orientation) {
+  return quaternionToGlobalTheta(orientation);
 };
 
 /**
@@ -27382,6 +27386,312 @@ var ArrowShape = /*@__PURE__*/(function (superclass) {
 
   return ArrowShape;
 }(createjsExports.Shape));
+
+/**
+ * @fileOverview
+ * Top-down 2D rendering of a single visualization_msgs/Marker message
+ * onto a createjs Container. Built so that ROS2D.MarkerArrayClient can
+ * keep using a uniform child-add/child-remove flow regardless of the
+ * underlying marker primitive.
+ *
+ * Z-axis information is intentionally dropped: only pose.position.x/y
+ * and the yaw component of pose.orientation are honored. MESH_RESOURCE
+ * is not representable in 2D and is skipped with a console warning.
+ *
+ * The viewer (ROS2D.Viewer) translates the stage to (0, height) but does
+ * not flip scaleY, so child y values still grow downward in canvas space.
+ * To make ROS +Y point up on screen this module negates every y value
+ * the way OccupancyGrid.js and PathShape.js do.
+ */
+
+var Marker = /*@__PURE__*/(function (superclass) {
+  function Marker(options) {
+    superclass.call(this);
+    options = options || {};
+    var message = options.message;
+    if (!message) {
+      return;
+    }
+
+    var color = message.color || { r: 1, g: 1, b: 1, a: 1 };
+    var scale = message.scale || { x: 1, y: 1, z: 1 };
+    var pose = message.pose || {
+      position: { x: 0, y: 0, z: 0 },
+      orientation: { x: 0, y: 0, z: 0, w: 1 }
+    };
+    var points = message.points || [];
+    var colors = message.colors || [];
+    var fillColor = this._rgbaToCss(color);
+    var i;
+
+    switch (message.type) {
+      case 0: // ARROW
+        this.addChild(new ArrowShape({
+          size: scale.x || 1,
+          strokeSize: 0,
+          strokeColor: fillColor,
+          fillColor: fillColor
+        }));
+        break;
+
+      case 1: // CUBE
+        // Centered rectangle: symmetrical, so negating y is a no-op.
+        var cube = new createjsExports.Shape();
+        cube.graphics.beginFill(fillColor).drawRect(
+          -scale.x / 2, -scale.y / 2, scale.x, scale.y
+        );
+        this.addChild(cube);
+        break;
+
+      case 2: // SPHERE
+      case 3: // CYLINDER
+        var circle = new createjsExports.Shape();
+        circle.graphics.beginFill(fillColor).drawCircle(0, 0, scale.x / 2);
+        this.addChild(circle);
+        break;
+
+      case 4: // LINE_STRIP
+        if (points.length >= 2) {
+          var lineStrip = new createjsExports.Shape();
+          var lsg = lineStrip.graphics;
+          lsg.setStrokeStyle(scale.x || 0.05).beginStroke(fillColor);
+          lsg.moveTo(points[0].x, -points[0].y);
+          for (i = 1; i < points.length; i++) {
+            lsg.lineTo(points[i].x, -points[i].y);
+          }
+          lsg.endStroke();
+          this.addChild(lineStrip);
+        }
+        break;
+
+      case 5: // LINE_LIST
+        if (points.length >= 2) {
+          var lineList = new createjsExports.Shape();
+          var llg = lineList.graphics;
+          llg.setStrokeStyle(scale.x || 0.05).beginStroke(fillColor);
+          for (i = 0; i + 1 < points.length; i += 2) {
+            llg.moveTo(points[i].x, -points[i].y);
+            llg.lineTo(points[i + 1].x, -points[i + 1].y);
+          }
+          llg.endStroke();
+          this.addChild(lineList);
+        }
+        break;
+
+      case 6: // CUBE_LIST
+        for (i = 0; i < points.length; i++) {
+          var cubeColor = colors[i]
+            ? this._rgbaToCss(colors[i])
+            : fillColor;
+          var cubeShape = new createjsExports.Shape();
+          cubeShape.graphics.beginFill(cubeColor).drawRect(
+            points[i].x - scale.x / 2,
+            -points[i].y - scale.y / 2,
+            scale.x,
+            scale.y
+          );
+          this.addChild(cubeShape);
+        }
+        break;
+
+      case 7: // SPHERE_LIST
+        for (i = 0; i < points.length; i++) {
+          var sphereColor = colors[i]
+            ? this._rgbaToCss(colors[i])
+            : fillColor;
+          var sphereShape = new createjsExports.Shape();
+          sphereShape.graphics.beginFill(sphereColor).drawCircle(
+            points[i].x, -points[i].y, scale.x / 2
+          );
+          this.addChild(sphereShape);
+        }
+        break;
+
+      case 8: // POINTS
+        var pw = scale.x || 0.05;
+        var ph = scale.y || pw;
+        for (i = 0; i < points.length; i++) {
+          var pointColor = colors[i]
+            ? this._rgbaToCss(colors[i])
+            : fillColor;
+          var pointShape = new createjsExports.Shape();
+          pointShape.graphics.beginFill(pointColor).drawRect(
+            points[i].x - pw / 2,
+            -points[i].y - ph / 2,
+            pw,
+            ph
+          );
+          this.addChild(pointShape);
+        }
+        break;
+
+      case 9: // TEXT_VIEW_FACING
+        var fontSize = scale.z || 1;
+        var text = new createjsExports.Text(
+          message.text || '', fontSize + 'px Arial', fillColor
+        );
+        this.addChild(text);
+        break;
+
+      case 10: // MESH_RESOURCE
+        console.warn(
+          'ROS2D.Marker: MESH_RESOURCE (type=10) is not supported in 2D top-down view; skipping.'
+        );
+        break;
+
+      case 11: // TRIANGLE_LIST
+        if (points.length >= 3) {
+          var triShape = new createjsExports.Shape();
+          var tlg = triShape.graphics;
+          for (i = 0; i + 2 < points.length; i += 3) {
+            var triColor = colors[i]
+              ? this._rgbaToCss(colors[i])
+              : fillColor;
+            tlg.beginFill(triColor);
+            tlg.moveTo(points[i].x, -points[i].y);
+            tlg.lineTo(points[i + 1].x, -points[i + 1].y);
+            tlg.lineTo(points[i + 2].x, -points[i + 2].y);
+            tlg.closePath();
+            tlg.endFill();
+          }
+          this.addChild(triShape);
+        }
+        break;
+
+      default:
+        console.warn('Marker: unknown marker type ' + message.type);
+        break;
+    }
+
+    this.x = pose.position.x;
+    this.y = -pose.position.y;
+    this.rotation = quaternionToGlobalTheta(pose.orientation);
+  }
+
+  if ( superclass ) Marker.__proto__ = superclass;
+  Marker.prototype = Object.create( superclass && superclass.prototype );
+  Marker.prototype.constructor = Marker;
+  /**
+   * Convert a ROS color {r, g, b, a} (0..1 floats) to a createjs CSS color string.
+   *
+   * @private
+   * @param {{r: number, g: number, b: number, a: number}} c
+   * @returns {string} CSS color string usable by createjs Graphics
+   */
+  Marker.prototype._rgbaToCss = function _rgbaToCss (c) {
+    return createjsExports.Graphics.getRGB(
+      Math.round(c.r * 255),
+      Math.round(c.g * 255),
+      Math.round(c.b * 255),
+      c.a
+    );
+  };
+
+  return Marker;
+}(createjsExports.Container));
+
+var MarkerArrayClient = /*@__PURE__*/(function (EventEmitter) {
+  function MarkerArrayClient(options) {
+    EventEmitter.call(this);
+    options = options || {};
+    var that = this;
+    var ros = options.ros;
+    this.topicName = options.topic || '/markers';
+    this.rootObject = options.rootObject || new createjsExports.Container();
+    if (options.tfClient) {
+      console.warn(
+        'MarkerArrayClient: tfClient option is reserved but not yet implemented; frame_id will be ignored.'
+      );
+    }
+
+    // key = ns + ':' + id  ->  { obj: ROS2D.Marker, timer: timeoutId|null }
+    this.markers = {};
+
+    this.rosTopic = new ROSLIB__namespace.Topic({
+      ros: ros,
+      name: this.topicName,
+      messageType: 'visualization_msgs/MarkerArray'
+    });
+
+    this.rosTopic.subscribe(function(message) {
+      that.processMessage(message);
+    });
+  }
+
+  if ( EventEmitter ) MarkerArrayClient.__proto__ = EventEmitter;
+  MarkerArrayClient.prototype = Object.create( EventEmitter && EventEmitter.prototype );
+  MarkerArrayClient.prototype.constructor = MarkerArrayClient;
+  MarkerArrayClient.prototype.processMessage = function processMessage (message) {
+    var markers = (message && message.markers) || [];
+    for (var i = 0; i < markers.length; i++) {
+      this._handleMarker(markers[i]);
+    }
+    this.emit('change');
+  };
+  MarkerArrayClient.prototype._handleMarker = function _handleMarker (m) {
+    // DELETEALL
+    if (m.action === 3) {
+      this._clearAll();
+      return;
+    }
+    var key = (m.ns || '') + ':' + m.id;
+    // DELETE
+    if (m.action === 2) {
+      this._removeMarker(key);
+      return;
+    }
+    // ADD or MODIFY
+    this._removeMarker(key);
+    var obj = new Marker({ message: m });
+    this.rootObject.addChild(obj);
+    var entry = { obj: obj, timer: null };
+    var lifeSec = (m.lifetime && m.lifetime.sec) || 0;
+    var lifeNs = (m.lifetime && m.lifetime.nanosec) || 0;
+    if (lifeSec > 0 || lifeNs > 0) {
+      var ms = lifeSec * 1000 + lifeNs / 1e6;
+      var that = this;
+      entry.timer = setTimeout(function() {
+        // Guard against double-removal: only act if the entry is still ours.
+        if (that.markers[key] === entry) {
+          that._removeMarker(key);
+          that.emit('change');
+        }
+      }, ms);
+    }
+    this.markers[key] = entry;
+  };
+  MarkerArrayClient.prototype._removeMarker = function _removeMarker (key) {
+    var entry = this.markers[key];
+    if (!entry) {
+      return;
+    }
+    if (entry.timer) {
+      clearTimeout(entry.timer);
+    }
+    this.rootObject.removeChild(entry.obj);
+    delete this.markers[key];
+  };
+  MarkerArrayClient.prototype._clearAll = function _clearAll () {
+    for (var k in this.markers) {
+      if (Object.prototype.hasOwnProperty.call(this.markers, k)) {
+        var entry = this.markers[k];
+        if (entry.timer) {
+          clearTimeout(entry.timer);
+        }
+        this.rootObject.removeChild(entry.obj);
+      }
+    }
+    this.markers = {};
+  };
+  MarkerArrayClient.prototype.unsubscribe = function unsubscribe () {
+    if (this.rosTopic) {
+      this.rosTopic.unsubscribe();
+    }
+    this._clearAll();
+  };
+
+  return MarkerArrayClient;
+}(EventEmitter));
 
 /**
  * @fileOverview
@@ -28201,6 +28511,8 @@ exports.Grid = Grid;
 exports.GridLines = GridLines;
 exports.ImageMap = ImageMap;
 exports.ImageMapClient = ImageMapClient;
+exports.Marker = Marker;
+exports.MarkerArrayClient = MarkerArrayClient;
 exports.NavigationArrow = NavigationArrow;
 exports.NavigationImage = NavigationImage;
 exports.OccupancyGrid = OccupancyGrid;
@@ -28214,3 +28526,4 @@ exports.RotateView = RotateView;
 exports.TraceShape = TraceShape;
 exports.Viewer = Viewer;
 exports.ZoomView = ZoomView;
+exports.quaternionToGlobalTheta = quaternionToGlobalTheta;

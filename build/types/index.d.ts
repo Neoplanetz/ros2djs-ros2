@@ -4,6 +4,8 @@ export * from "./maps/ImageMapClient";
 export * from "./maps/OccupancyGrid";
 export * from "./maps/OccupancyGridClient";
 export * from "./maps/OccupancyGridSrvClient";
+export * from "./markers/Marker";
+export * from "./markers/MarkerArrayClient";
 export * from "./models/ArrowShape";
 export * from "./models/Grid";
 export * from "./models/NavigationArrow";

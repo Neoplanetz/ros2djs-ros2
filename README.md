@@ -63,12 +63,45 @@ gridClient.on('change', () => {
 });
 ```
 
+## Visualizing MarkerArray
+
+`MarkerArrayClient` subscribes to a `visualization_msgs/MarkerArray` topic and renders each marker as a top-down 2D projection (Z is dropped). Markers are tracked by `namespace + id`, and the four standard actions — `ADD` (0), `MODIFY` (0), `DELETE` (2), `DELETEALL` (3) — are honored, along with positive `lifetime` values for automatic removal.
+
+```js
+import { Viewer, MarkerArrayClient } from 'ros2d';
+
+const viewer = new Viewer({ divID: 'markers', width: 800, height: 600 });
+const markerClient = new MarkerArrayClient({
+  ros,
+  topic: '/markers',
+  rootObject: viewer.scene,
+});
+markerClient.on('change', () => { /* re-render hooks, etc. */ });
+```
+
+Supported marker types in the v1 implementation:
+
+| Type | Constant | Notes |
+|------|----------|-------|
+| 0 | `ARROW` | Reuses `ROS2D.ArrowShape`, length = `scale.x` |
+| 1 | `CUBE` | `scale.x` × `scale.y` rectangle |
+| 2, 3 | `SPHERE`, `CYLINDER` | Circle of radius `scale.x / 2` |
+| 4, 5 | `LINE_STRIP`, `LINE_LIST` | Stroke width = `scale.x` |
+| 6, 7 | `CUBE_LIST`, `SPHERE_LIST` | One shape per point; per-point colors via `colors[]` |
+| 8 | `POINTS` | Per-point colors supported |
+| 9 | `TEXT_VIEW_FACING` | Font height = `scale.z` (meters) |
+| 11 | `TRIANGLE_LIST` | Filled triangles in groups of 3 points |
+
+`MESH_RESOURCE` (10) is not representable in 2D and is skipped with a console warning. `frame_id` / TF lookup is intentionally not performed in v1 — markers render in the `rootObject`'s coordinate frame, matching the convention used by `OccupancyGridClient`. The `tfClient` option slot is reserved for future TF-aware support.
+
+A runnable example lives at [`examples/markers.html`](./examples/markers.html).
+
 ## Development
 
 ```bash
 npm install
 npm run build      # prebuild (transpile) + rollup + tsc
-npm test           # vitest (22 tests)
+npm test           # vitest (48 tests)
 npm run lint       # eslint via grunt
 ```
 
