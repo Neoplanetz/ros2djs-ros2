@@ -32,16 +32,47 @@ ROS2D.TraceShape = function(options) {
 
 	// Create the graphics
 	this.graphics = new createjs.Graphics();
-	this.graphics.setStrokeStyle(this.strokeSize);
-	this.graphics.beginStroke(this.strokeColor);
 
 	// Add first pose if given
 	if (pose !== null && typeof pose !== 'undefined') {
 		this.poses.push(pose);
 	}
 
+	// Initial draw so strokeSize/strokeColor are respected consistently
+	// with the redraw() path (single source of truth for stroke settings).
+	this._render();
+
 	// Create the shape
 	createjs.Shape.call(this, this.graphics);
+};
+
+/**
+ * Redraw every pose currently in the trace using the current
+ * strokeSize/strokeColor. Call this after changing strokeSize or
+ * strokeColor on an existing TraceShape to apply the new values:
+ *
+ *   trace.strokeSize = 0.05;
+ *   trace.redraw();
+ */
+ROS2D.TraceShape.prototype.redraw = function() {
+	this._render();
+};
+
+/**
+ * @private
+ * Regenerate the graphics buffer from this.poses.
+ */
+ROS2D.TraceShape.prototype._render = function() {
+	this.graphics.clear();
+	this.graphics.setStrokeStyle(this.strokeSize);
+	this.graphics.beginStroke(this.strokeColor);
+	if (this.poses.length > 0) {
+		this.graphics.moveTo(this.poses[0].position.x / this.scaleX, this.poses[0].position.y / -this.scaleY);
+		for (var i = 1; i < this.poses.length; ++i) {
+			this.graphics.lineTo(this.poses[i].position.x / this.scaleX, this.poses[i].position.y / -this.scaleY);
+		}
+	}
+	this.graphics.endStroke();
 };
 
 /**
@@ -71,19 +102,16 @@ ROS2D.TraceShape.prototype.addPose = function(pose) {
 };
 
 /**
- * Removes front pose and updates the graphics
+ * Removes the front pose and redraws from the remaining trace. Unlike
+ * the previous implementation this goes through _render() so the first
+ * segment starts with a moveTo and the stroke mode is reapplied
+ * cleanly — fixes a visual bug where popFront left the pen starting
+ * from a stale location.
  */
 ROS2D.TraceShape.prototype.popFront = function() {
 	if (this.poses.length > 0) {
 		this.poses.shift();
-		// TODO: shift drawing instructions rather than doing it all over
-		this.graphics.clear();
-		this.graphics.setStrokeStyle(this.strokeSize);
-		this.graphics.beginStroke(this.strokeColor);
-		this.graphics.lineTo(this.poses[0].position.x / this.scaleX, this.poses[0].position.y / -this.scaleY);
-		for (var i=1; i<this.poses.length; ++i) {
-			this.graphics.lineTo(this.poses[i].position.x / this.scaleX, this.poses[i].position.y / -this.scaleY);
-		}
+		this._render();
 	}
 };
 
