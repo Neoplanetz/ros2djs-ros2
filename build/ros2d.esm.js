@@ -27305,6 +27305,304 @@ var OccupancyGridSrvClient = /*@__PURE__*/(function (EventEmitter) {
  * @author Bart van Vliet - bart@dobots.nl
  */
 
+var PathShape = /*@__PURE__*/(function (superclass) {
+  function PathShape(options) {
+  	options = options || {};
+  	var path = options.path;
+  	this.strokeSize = options.strokeSize || 3;
+  	this.strokeColor = options.strokeColor || createjsExports.Graphics.getRGB(0, 0, 0);
+
+  	// draw the line
+  	this.graphics = new createjsExports.Graphics();
+
+  	if (path !== null && typeof path !== 'undefined') {
+  		this.graphics.setStrokeStyle(this.strokeSize);
+  		this.graphics.beginStroke(this.strokeColor);
+  		this.graphics.moveTo(path.poses[0].pose.position.x / this.scaleX, path.poses[0].pose.position.y / -this.scaleY);
+  		for (var i=1; i<path.poses.length; ++i) {
+  			this.graphics.lineTo(path.poses[i].pose.position.x / this.scaleX, path.poses[i].pose.position.y / -this.scaleY);
+  		}
+  		this.graphics.endStroke();
+  	}
+
+  	// create the shape
+  	superclass.call(this, this.graphics);
+  }
+
+  if ( superclass ) PathShape.__proto__ = superclass;
+  PathShape.prototype = Object.create( superclass && superclass.prototype );
+  PathShape.prototype.constructor = PathShape;
+  /**
+   * Set the path to draw
+   *
+   * @param path of type nav_msgs/Path
+   */
+  PathShape.prototype.setPath = function setPath (path) {
+  	this.graphics.clear();
+  	if (path !== null && typeof path !== 'undefined') {
+  		this.graphics.setStrokeStyle(this.strokeSize);
+  		this.graphics.beginStroke(this.strokeColor);
+  		this.graphics.moveTo(path.poses[0].pose.position.x / this.scaleX, path.poses[0].pose.position.y / -this.scaleY);
+  		for (var i=1; i<path.poses.length; ++i) {
+  			this.graphics.lineTo(path.poses[i].pose.position.x / this.scaleX, path.poses[i].pose.position.y / -this.scaleY);
+  		}
+  		this.graphics.endStroke();
+  	}
+  };
+
+  return PathShape;
+}(createjsExports.Shape));
+
+var PathClient = /*@__PURE__*/(function (EventEmitter) {
+  function PathClient(options) {
+    EventEmitter.call(this);
+    options = options || {};
+    var that = this;
+    var ros = options.ros;
+    this.topicName = options.topic || '/path';
+    this.rootObject = options.rootObject || new createjsExports.Container();
+
+    this.pathShape = new PathShape({
+      strokeSize: options.strokeSize,
+      strokeColor: options.strokeColor
+    });
+    this.rootObject.addChild(this.pathShape);
+
+    this.rosTopic = new ROSLIB.Topic({
+      ros: ros,
+      name: this.topicName,
+      messageType: 'nav_msgs/Path'
+    });
+
+    this.rosTopic.subscribe(function(message) {
+      that.pathShape.setPath(message);
+      that.emit('change');
+    });
+  }
+
+  if ( EventEmitter ) PathClient.__proto__ = EventEmitter;
+  PathClient.prototype = Object.create( EventEmitter && EventEmitter.prototype );
+  PathClient.prototype.constructor = PathClient;
+  /**
+   * Detach from the topic and remove the managed PathShape from the rootObject.
+   */
+  PathClient.prototype.unsubscribe = function unsubscribe () {
+    if (this.rosTopic) {
+      this.rosTopic.unsubscribe();
+    }
+    if (this.pathShape && this.rootObject) {
+      this.rootObject.removeChild(this.pathShape);
+    }
+  };
+
+  return PathClient;
+}(EventEmitter));
+
+/**
+ * @fileOverview
+ * @author Russell Toris - rctoris@wpi.edu
+ */
+
+var NavigationArrow = /*@__PURE__*/(function (superclass) {
+  function NavigationArrow(options) {
+    var that = this;
+    options = options || {};
+    var size = options.size || 10;
+    var strokeSize = options.strokeSize || 3;
+    var strokeColor = options.strokeColor || createjsExports.Graphics.getRGB(0, 0, 0);
+    var fillColor = options.fillColor || createjsExports.Graphics.getRGB(255, 0, 0);
+    var pulse = options.pulse;
+
+    // draw the arrow
+    var graphics = new createjsExports.Graphics();
+    // line width
+    graphics.setStrokeStyle(strokeSize);
+    graphics.moveTo(-size / 2.0, -size / 2.0);
+    graphics.beginStroke(strokeColor);
+    graphics.beginFill(fillColor);
+    graphics.lineTo(size, 0);
+    graphics.lineTo(-size / 2.0, size / 2.0);
+    graphics.closePath();
+    graphics.endFill();
+    graphics.endStroke();
+
+    // create the shape
+    superclass.call(this, graphics);
+
+    // check if we are pulsing
+    if (pulse) {
+      // have the model "pulse"
+      var growCount = 0;
+      var growing = true;
+      createjsExports.Ticker.addEventListener('tick', function() {
+        if (growing) {
+          that.scaleX *= 1.035;
+          that.scaleY *= 1.035;
+          growing = (++growCount < 10);
+        } else {
+          that.scaleX /= 1.035;
+          that.scaleY /= 1.035;
+          growing = (--growCount < 0);
+        }
+      });
+    }
+  }
+
+  if ( superclass ) NavigationArrow.__proto__ = superclass;
+  NavigationArrow.prototype = Object.create( superclass && superclass.prototype );
+  NavigationArrow.prototype.constructor = NavigationArrow;
+
+  return NavigationArrow;
+}(createjsExports.Shape));
+
+var PoseStampedClient = /*@__PURE__*/(function (EventEmitter) {
+  function PoseStampedClient(options) {
+    EventEmitter.call(this);
+    options = options || {};
+    var that = this;
+    var ros = options.ros;
+    this.topicName = options.topic || '/pose';
+    this.rootObject = options.rootObject || new createjsExports.Container();
+
+    this.arrow = new NavigationArrow({
+      size: options.size,
+      strokeSize: options.strokeSize,
+      strokeColor: options.strokeColor,
+      fillColor: options.fillColor,
+      pulse: options.pulse
+    });
+    // Keep the arrow hidden until the first message arrives so it does not
+    // flash at the origin on startup.
+    this.arrow.visible = false;
+    this.rootObject.addChild(this.arrow);
+
+    this.rosTopic = new ROSLIB.Topic({
+      ros: ros,
+      name: this.topicName,
+      messageType: 'geometry_msgs/PoseStamped'
+    });
+
+    this.rosTopic.subscribe(function(message) {
+      var pose = message && message.pose;
+      if (!pose || !pose.position) {
+        return;
+      }
+      that.arrow.x = pose.position.x;
+      that.arrow.y = -pose.position.y;
+      that.arrow.rotation = quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
+      that.arrow.visible = true;
+      that.emit('change');
+    });
+  }
+
+  if ( EventEmitter ) PoseStampedClient.__proto__ = EventEmitter;
+  PoseStampedClient.prototype = Object.create( EventEmitter && EventEmitter.prototype );
+  PoseStampedClient.prototype.constructor = PoseStampedClient;
+  /**
+   * Detach from the topic and remove the managed arrow from the rootObject.
+   */
+  PoseStampedClient.prototype.unsubscribe = function unsubscribe () {
+    if (this.rosTopic) {
+      this.rosTopic.unsubscribe();
+    }
+    if (this.arrow && this.rootObject) {
+      this.rootObject.removeChild(this.arrow);
+    }
+  };
+
+  return PoseStampedClient;
+}(EventEmitter));
+
+var PoseArrayClient = /*@__PURE__*/(function (EventEmitter) {
+  function PoseArrayClient(options) {
+    EventEmitter.call(this);
+    options = options || {};
+    var that = this;
+    var ros = options.ros;
+    this.topicName = options.topic || '/particlecloud';
+    this.rootObject = options.rootObject || new createjsExports.Container();
+
+    this._arrowOptions = {
+      size: options.size,
+      strokeSize: options.strokeSize,
+      strokeColor: options.strokeColor,
+      fillColor: options.fillColor
+    };
+
+    // A dedicated container so we can wipe it on every message without
+    // touching siblings that the caller may have added to rootObject.
+    this.container = new createjsExports.Container();
+    this.rootObject.addChild(this.container);
+
+    this.rosTopic = new ROSLIB.Topic({
+      ros: ros,
+      name: this.topicName,
+      messageType: 'geometry_msgs/PoseArray'
+    });
+
+    this.rosTopic.subscribe(function(message) {
+      that._render(message);
+      that.emit('change');
+    });
+  }
+
+  if ( EventEmitter ) PoseArrayClient.__proto__ = EventEmitter;
+  PoseArrayClient.prototype = Object.create( EventEmitter && EventEmitter.prototype );
+  PoseArrayClient.prototype.constructor = PoseArrayClient;
+  /**
+   * @private
+   * Rebuild the arrow set from a PoseArray message.
+   */
+  PoseArrayClient.prototype._render = function _render (message) {
+    this._clearContainer();
+    var poses = (message && message.poses) || [];
+    for (var i = 0; i < poses.length; i++) {
+      var pose = poses[i];
+      if (!pose || !pose.position) {
+        continue;
+      }
+      var arrow = new NavigationArrow(this._arrowOptions);
+      arrow.x = pose.position.x;
+      arrow.y = -pose.position.y;
+      arrow.rotation = quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
+      this.container.addChild(arrow);
+    }
+  };
+  /**
+   * @private
+   * Drop every child arrow from the managed container.
+   */
+  PoseArrayClient.prototype._clearContainer = function _clearContainer () {
+    if (typeof this.container.removeAllChildren === 'function') {
+      this.container.removeAllChildren();
+      return;
+    }
+    // Fallback for mocks without removeAllChildren.
+    while (this.container.children && this.container.children.length > 0) {
+      this.container.removeChild(this.container.children[this.container.children.length - 1]);
+    }
+  };
+  /**
+   * Detach from the topic and drop the managed container from the rootObject.
+   */
+  PoseArrayClient.prototype.unsubscribe = function unsubscribe () {
+    if (this.rosTopic) {
+      this.rosTopic.unsubscribe();
+    }
+    this._clearContainer();
+    if (this.container && this.rootObject) {
+      this.rootObject.removeChild(this.container);
+    }
+  };
+
+  return PoseArrayClient;
+}(EventEmitter));
+
+/**
+ * @fileOverview
+ * @author Bart van Vliet - bart@dobots.nl
+ */
+
 var ArrowShape = /*@__PURE__*/(function (superclass) {
   function ArrowShape(options) {
   	var that = this;
@@ -27671,63 +27969,6 @@ var MarkerArrayClient = /*@__PURE__*/(function (EventEmitter) {
 
 /**
  * @fileOverview
- * @author Russell Toris - rctoris@wpi.edu
- */
-
-var NavigationArrow = /*@__PURE__*/(function (superclass) {
-  function NavigationArrow(options) {
-    var that = this;
-    options = options || {};
-    var size = options.size || 10;
-    var strokeSize = options.strokeSize || 3;
-    var strokeColor = options.strokeColor || createjsExports.Graphics.getRGB(0, 0, 0);
-    var fillColor = options.fillColor || createjsExports.Graphics.getRGB(255, 0, 0);
-    var pulse = options.pulse;
-
-    // draw the arrow
-    var graphics = new createjsExports.Graphics();
-    // line width
-    graphics.setStrokeStyle(strokeSize);
-    graphics.moveTo(-size / 2.0, -size / 2.0);
-    graphics.beginStroke(strokeColor);
-    graphics.beginFill(fillColor);
-    graphics.lineTo(size, 0);
-    graphics.lineTo(-size / 2.0, size / 2.0);
-    graphics.closePath();
-    graphics.endFill();
-    graphics.endStroke();
-
-    // create the shape
-    superclass.call(this, graphics);
-
-    // check if we are pulsing
-    if (pulse) {
-      // have the model "pulse"
-      var growCount = 0;
-      var growing = true;
-      createjsExports.Ticker.addEventListener('tick', function() {
-        if (growing) {
-          that.scaleX *= 1.035;
-          that.scaleY *= 1.035;
-          growing = (++growCount < 10);
-        } else {
-          that.scaleX /= 1.035;
-          that.scaleY /= 1.035;
-          growing = (--growCount < 0);
-        }
-      });
-    }
-  }
-
-  if ( superclass ) NavigationArrow.__proto__ = superclass;
-  NavigationArrow.prototype = Object.create( superclass && superclass.prototype );
-  NavigationArrow.prototype.constructor = NavigationArrow;
-
-  return NavigationArrow;
-}(createjsExports.Shape));
-
-/**
- * @fileOverview
  * @author Inigo Gonzalez - ingonza85@gmail.com
  */
 
@@ -27791,59 +28032,6 @@ var NavigationImage = /*@__PURE__*/(function (superclass) {
 
   return NavigationImage;
 }(createjsExports.Bitmap));
-
-/**
- * @fileOverview
- * @author Bart van Vliet - bart@dobots.nl
- */
-
-var PathShape = /*@__PURE__*/(function (superclass) {
-  function PathShape(options) {
-  	options = options || {};
-  	var path = options.path;
-  	this.strokeSize = options.strokeSize || 3;
-  	this.strokeColor = options.strokeColor || createjsExports.Graphics.getRGB(0, 0, 0);
-
-  	// draw the line
-  	this.graphics = new createjsExports.Graphics();
-
-  	if (path !== null && typeof path !== 'undefined') {
-  		this.graphics.setStrokeStyle(this.strokeSize);
-  		this.graphics.beginStroke(this.strokeColor);
-  		this.graphics.moveTo(path.poses[0].pose.position.x / this.scaleX, path.poses[0].pose.position.y / -this.scaleY);
-  		for (var i=1; i<path.poses.length; ++i) {
-  			this.graphics.lineTo(path.poses[i].pose.position.x / this.scaleX, path.poses[i].pose.position.y / -this.scaleY);
-  		}
-  		this.graphics.endStroke();
-  	}
-
-  	// create the shape
-  	superclass.call(this, this.graphics);
-  }
-
-  if ( superclass ) PathShape.__proto__ = superclass;
-  PathShape.prototype = Object.create( superclass && superclass.prototype );
-  PathShape.prototype.constructor = PathShape;
-  /**
-   * Set the path to draw
-   *
-   * @param path of type nav_msgs/Path
-   */
-  PathShape.prototype.setPath = function setPath (path) {
-  	this.graphics.clear();
-  	if (path !== null && typeof path !== 'undefined') {
-  		this.graphics.setStrokeStyle(this.strokeSize);
-  		this.graphics.beginStroke(this.strokeColor);
-  		this.graphics.moveTo(path.poses[0].pose.position.x / this.scaleX, path.poses[0].pose.position.y / -this.scaleY);
-  		for (var i=1; i<path.poses.length; ++i) {
-  			this.graphics.lineTo(path.poses[i].pose.position.x / this.scaleX, path.poses[i].pose.position.y / -this.scaleY);
-  		}
-  		this.graphics.endStroke();
-  	}
-  };
-
-  return PathShape;
-}(createjsExports.Shape));
 
 /**
  * @fileOverview
@@ -28133,13 +28321,15 @@ var TraceShape = /*@__PURE__*/(function (superclass) {
 
   	// Create the graphics
   	this.graphics = new createjsExports.Graphics();
-  	this.graphics.setStrokeStyle(this.strokeSize);
-  	this.graphics.beginStroke(this.strokeColor);
 
   	// Add first pose if given
   	if (pose !== null && typeof pose !== 'undefined') {
   		this.poses.push(pose);
   	}
+
+  	// Initial draw so strokeSize/strokeColor are respected consistently
+  	// with the redraw() path (single source of truth for stroke settings).
+  	this._render();
 
   	// Create the shape
   	superclass.call(this, this.graphics);
@@ -28148,6 +28338,33 @@ var TraceShape = /*@__PURE__*/(function (superclass) {
   if ( superclass ) TraceShape.__proto__ = superclass;
   TraceShape.prototype = Object.create( superclass && superclass.prototype );
   TraceShape.prototype.constructor = TraceShape;
+  /**
+   * Redraw every pose currently in the trace using the current
+   * strokeSize/strokeColor. Call this after changing strokeSize or
+   * strokeColor on an existing TraceShape to apply the new values:
+   *
+   *   trace.strokeSize = 0.05;
+   *   trace.redraw();
+   */
+  TraceShape.prototype.redraw = function redraw () {
+  	this._render();
+  };
+  /**
+   * @private
+   * Regenerate the graphics buffer from this.poses.
+   */
+  TraceShape.prototype._render = function _render () {
+  	this.graphics.clear();
+  	this.graphics.setStrokeStyle(this.strokeSize);
+  	this.graphics.beginStroke(this.strokeColor);
+  	if (this.poses.length > 0) {
+  		this.graphics.moveTo(this.poses[0].position.x / this.scaleX, this.poses[0].position.y / -this.scaleY);
+  		for (var i = 1; i < this.poses.length; ++i) {
+  			this.graphics.lineTo(this.poses[i].position.x / this.scaleX, this.poses[i].position.y / -this.scaleY);
+  		}
+  	}
+  	this.graphics.endStroke();
+  };
   /**
    * Adds a pose to the trace and updates the graphics
    *
@@ -28174,19 +28391,16 @@ var TraceShape = /*@__PURE__*/(function (superclass) {
   	}
   };
   /**
-   * Removes front pose and updates the graphics
+   * Removes the front pose and redraws from the remaining trace. Unlike
+   * the previous implementation this goes through _render() so the first
+   * segment starts with a moveTo and the stroke mode is reapplied
+   * cleanly — fixes a visual bug where popFront left the pen starting
+   * from a stale location.
    */
   TraceShape.prototype.popFront = function popFront () {
   	if (this.poses.length > 0) {
   		this.poses.shift();
-  		// TODO: shift drawing instructions rather than doing it all over
-  		this.graphics.clear();
-  		this.graphics.setStrokeStyle(this.strokeSize);
-  		this.graphics.beginStroke(this.strokeColor);
-  		this.graphics.lineTo(this.poses[0].position.x / this.scaleX, this.poses[0].position.y / -this.scaleY);
-  		for (var i=1; i<this.poses.length; ++i) {
-  			this.graphics.lineTo(this.poses[i].position.x / this.scaleX, this.poses[i].position.y / -this.scaleY);
-  		}
+  		this._render();
   	}
   };
 
@@ -28481,4 +28695,4 @@ var GridLines = /*@__PURE__*/(function (superclass) {
   return GridLines;
 }(createjsExports.Shape));
 
-export { ArrowShape, Axis, Grid, GridLines, ImageMap, ImageMapClient, Marker, MarkerArrayClient, NavigationArrow, NavigationImage, OccupancyGrid, OccupancyGridClient, OccupancyGridSrvClient, PanView, PathShape, PolygonMarker, REVISION, RotateView, TraceShape, Viewer, ZoomView, quaternionToGlobalTheta };
+export { ArrowShape, Axis, Grid, GridLines, ImageMap, ImageMapClient, Marker, MarkerArrayClient, NavigationArrow, NavigationImage, OccupancyGrid, OccupancyGridClient, OccupancyGridSrvClient, PanView, PathClient, PathShape, PolygonMarker, PoseArrayClient, PoseStampedClient, REVISION, RotateView, TraceShape, Viewer, ZoomView, quaternionToGlobalTheta };

@@ -21,13 +21,31 @@ export class TraceShape extends createjs.Shape {
     minDist: number;
     poses: any[];
     /**
+     * Redraw every pose currently in the trace using the current
+     * strokeSize/strokeColor. Call this after changing strokeSize or
+     * strokeColor on an existing TraceShape to apply the new values:
+     *
+     *   trace.strokeSize = 0.05;
+     *   trace.redraw();
+     */
+    redraw(): void;
+    /**
+     * @private
+     * Regenerate the graphics buffer from this.poses.
+     */
+    private _render;
+    /**
      * Adds a pose to the trace and updates the graphics
      *
      * @param pose of type ROSLIB.Pose
      */
     addPose(pose: any): void;
     /**
-     * Removes front pose and updates the graphics
+     * Removes the front pose and redraws from the remaining trace. Unlike
+     * the previous implementation this goes through _render() so the first
+     * segment starts with a moveTo and the stroke mode is reapplied
+     * cleanly — fixes a visual bug where popFront left the pen starting
+     * from a stale location.
      */
     popFront(): void;
 }
