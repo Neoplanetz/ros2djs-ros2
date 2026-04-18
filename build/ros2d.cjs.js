@@ -26601,7 +26601,7 @@ var createjsExports = requireCreatejs();
 
 // import * as createjs from 'createjs-module';
 
-var REVISION = '1.1.0';
+var REVISION = '1.2.0';
 
 // convert the given global Stage coordinates to ROS coordinates
 createjsExports.Stage.prototype.globalToRos = function(x, y) {
