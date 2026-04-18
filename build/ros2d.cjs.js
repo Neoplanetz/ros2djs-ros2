@@ -27334,23 +27334,40 @@ var NavigationArrow = /*@__PURE__*/(function (superclass) {
     var that = this;
     options = options || {};
     var size = options.size || 10;
-    var strokeSize = options.strokeSize || 3;
+    var strokeSize = (typeof options.strokeSize === 'number') ? options.strokeSize : 0;
     var strokeColor = options.strokeColor || createjsExports.Graphics.getRGB(0, 0, 0);
     var fillColor = options.fillColor || createjsExports.Graphics.getRGB(255, 0, 0);
+    var headLengthRatio = options.headLengthRatio || 0.35;
+    var headWidthRatio = options.headWidthRatio || 0.20;
+    var shaftWidthRatio = options.shaftWidthRatio || 0.08;
     var pulse = options.pulse;
 
-    // draw the arrow
+    // Geometry — total arrow spans [-halfLen, +halfLen] on the local x axis.
+    var halfLen = size / 2;
+    var headLen = size * headLengthRatio;
+    var headHalf = size * headWidthRatio;
+    var shaftHalf = size * shaftWidthRatio;
+    var headBase = halfLen - headLen;
+
     var graphics = new createjsExports.Graphics();
-    // line width
-    graphics.setStrokeStyle(strokeSize);
-    graphics.moveTo(-size / 2.0, -size / 2.0);
-    graphics.beginStroke(strokeColor);
+    if (strokeSize > 0) {
+      graphics.setStrokeStyle(strokeSize);
+      graphics.beginStroke(strokeColor);
+    }
     graphics.beginFill(fillColor);
-    graphics.lineTo(size, 0);
-    graphics.lineTo(-size / 2.0, size / 2.0);
+    // Trace the 7-point arrow polygon clockwise starting at the tail-top.
+    graphics.moveTo(-halfLen, -shaftHalf);
+    graphics.lineTo(headBase, -shaftHalf);
+    graphics.lineTo(headBase, -headHalf);
+    graphics.lineTo(halfLen, 0);
+    graphics.lineTo(headBase, headHalf);
+    graphics.lineTo(headBase, shaftHalf);
+    graphics.lineTo(-halfLen, shaftHalf);
     graphics.closePath();
     graphics.endFill();
-    graphics.endStroke();
+    if (strokeSize > 0) {
+      graphics.endStroke();
+    }
 
     // create the shape
     superclass.call(this, graphics);
