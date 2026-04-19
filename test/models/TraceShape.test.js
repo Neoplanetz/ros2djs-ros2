@@ -58,6 +58,31 @@ describe('ROS2D.TraceShape', () => {
     expect(t.poses).toHaveLength(1);
   });
 
+  it('addPose re-renders via _render so moveTo/lineTo stay inside a fresh stroke context', () => {
+    const t = new TraceShape({ minDist: 0.01 });
+    t.addPose(pose(0, 0));
+    t.addPose(pose(1, 0));
+    t.addPose(pose(2, 0));
+    // Each accepted addPose must go through _render (= one clear +
+    // setStrokeStyle + beginStroke + moveTo/lineTo + endStroke). Without
+    // this, incremental moveTo/lineTo land after the ctor's endStroke
+    // and render invisibly. One clear from the ctor + one per addPose.
+    const clears = t.graphics.commands.filter(c => c === 'clear');
+    expect(clears.length).toBe(4);
+    // Every re-render closes with endStroke so the NEXT addPose starts
+    // from a clean stroke state.
+    expect(t.graphics.commands[t.graphics.commands.length - 1]).toBe('endStroke');
+  });
+
+  it('addPose skipped by minDist does NOT trigger a redraw', () => {
+    const t = new TraceShape({ minDist: 1 });
+    t.addPose(pose(0, 0));
+    const clearsAfterFirst = t.graphics.commands.filter(c => c === 'clear').length;
+    t.addPose(pose(0.1, 0.1)); // below minDist^2 = 1
+    const clearsAfterRejected = t.graphics.commands.filter(c => c === 'clear').length;
+    expect(clearsAfterRejected).toBe(clearsAfterFirst);
+  });
+
   it('popFront redraws starting from the new front with a moveTo', () => {
     const t = new TraceShape({ minDist: 0.01, maxPoses: 0 });
     t.addPose(pose(0, 0));

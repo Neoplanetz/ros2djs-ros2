@@ -26601,7 +26601,7 @@ var createjsExports = requireCreatejs();
 
 // import * as createjs from 'createjs-module';
 
-var REVISION = '1.2.0';
+var REVISION = '1.2.1';
 
 // convert the given global Stage coordinates to ROS coordinates
 createjsExports.Stage.prototype.globalToRos = function(x, y) {
@@ -28476,7 +28476,14 @@ var TraceShape = /*@__PURE__*/(function (superclass) {
   	this.graphics.endStroke();
   };
   /**
-   * Adds a pose to the trace and updates the graphics
+   * Adds a pose to the trace and updates the graphics.
+   *
+   * The graphics buffer is regenerated through _render() on every accepted
+   * pose so the stroke context set up in the constructor (which ends after
+   * setStrokeStyle/beginStroke via endStroke) is re-established on each
+   * redraw. Without this, incremental moveTo/lineTo calls land outside the
+   * active stroke and the trace renders invisibly. Mirrors the same approach
+   * popFront() uses.
    *
    * @param pose of type ROSLIB.Pose
    */
@@ -28484,7 +28491,6 @@ var TraceShape = /*@__PURE__*/(function (superclass) {
   	var last = this.poses.length-1;
   	if (last < 0) {
   		this.poses.push(pose);
-  		this.graphics.moveTo(pose.position.x / this.scaleX, pose.position.y / -this.scaleY);
   	}
   	else {
   		var prevX = this.poses[last].position.x;
@@ -28492,13 +28498,16 @@ var TraceShape = /*@__PURE__*/(function (superclass) {
   		var dx = (pose.position.x - prevX);
   		var dy = (pose.position.y - prevY);
   		if (dx*dx + dy*dy > this.minDist) {
-  			this.graphics.lineTo(pose.position.x / this.scaleX, pose.position.y / -this.scaleY);
   			this.poses.push(pose);
+  		} else {
+  			// Pose rejected — no geometry change, no redraw needed.
+  			return;
   		}
   	}
   	if (this.maxPoses > 0 && this.maxPoses < this.poses.length) {
-  		this.popFront();
+  		this.poses.shift();
   	}
+  	this._render();
   };
   /**
    * Removes the front pose and redraws from the remaining trace. Unlike
