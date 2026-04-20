@@ -52,7 +52,12 @@ ROS2D.PoseStampedClient = function(options) {
   // Keep the marker hidden until the first message arrives so it does not
   // flash at the origin on startup.
   this.marker.visible = false;
-  this.rootObject.addChild(this.marker);
+  this.tfClient = options.tfClient || null;
+  this.node = null;
+  if (!this.tfClient) {
+    this.rootObject.addChild(this.marker);
+  }
+  // tfClient path: we add the SceneNode on first message instead.
 
   this.rosTopic = new ROSLIB.Topic({
     ros: ros,
@@ -65,10 +70,27 @@ ROS2D.PoseStampedClient = function(options) {
     if (!pose || !pose.position) {
       return;
     }
-    that.marker.x = pose.position.x;
-    that.marker.y = -pose.position.y;
-    that.marker.rotation = ROS2D.quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
-    that.marker.visible = true;
+    if (that.tfClient) {
+      var frame = (message.header && message.header.frame_id) || '';
+      if (!that.node) {
+        that.node = new ROS2D.SceneNode({
+          tfClient: that.tfClient,
+          frame_id: frame,
+          pose: pose,
+          object: that.marker
+        });
+        that.rootObject.addChild(that.node);
+      } else {
+        if (that.node.frame_id !== frame) { that.node.setFrame(frame); }
+        that.node.setPose(pose);
+      }
+      // Marker stays at origin; SceneNode positions it.
+    } else {
+      that.marker.x = pose.position.x;
+      that.marker.y = -pose.position.y;
+      that.marker.rotation = ROS2D.quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
+      that.marker.visible = true;
+    }
     that.emit('change');
   });
 };
@@ -80,7 +102,11 @@ ROS2D.PoseStampedClient.prototype.unsubscribe = function() {
   if (this.rosTopic) {
     this.rosTopic.unsubscribe();
   }
-  if (this.marker && this.rootObject) {
+  if (this.node) {
+    this.node.unsubscribe();
+    this.rootObject.removeChild(this.node);
+    this.node = null;
+  } else if (this.marker && this.rootObject) {
     this.rootObject.removeChild(this.marker);
   }
 };

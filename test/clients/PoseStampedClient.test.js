@@ -31,6 +31,23 @@ globalThis.ROS2D.NavigationArrow = function FakeArrow(opts) {
 };
 globalThis.ROS2D.NavigationArrow.prototype.__proto__ = FakeShape.prototype;
 
+// SceneNode uses ROSLIB.Pose; stub it.
+globalThis.ROSLIB.Pose = function(options) {
+  this.position = { x: options.position.x, y: options.position.y, z: options.position.z };
+  this.orientation = {
+    x: options.orientation.x, y: options.orientation.y,
+    z: options.orientation.z, w: options.orientation.w
+  };
+};
+globalThis.ROSLIB.Pose.prototype.applyTransform = function(tf) {
+  this.position = {
+    x: this.position.x + tf.translation.x,
+    y: this.position.y + tf.translation.y,
+    z: this.position.z + tf.translation.z,
+  };
+};
+
+await import('../../src/visualization/SceneNode.js');
 await import('../../src/clients/PoseStampedClient.js');
 const PoseStampedClient = globalThis.ROS2D.PoseStampedClient;
 
@@ -81,5 +98,80 @@ describe('ROS2D.PoseStampedClient', () => {
     c.unsubscribe();
     expect(topic._subs).toHaveLength(0);
     expect(root.children).not.toContain(c.arrow);
+  });
+
+  it('with tfClient: first message creates SceneNode wrapping the marker', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const root = new FakeContainer();
+    const client = new globalThis.ROS2D.PoseStampedClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root, tfClient: tf,
+    });
+    expect(client.node).toBeFalsy();
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({
+      header: { frame_id: 'map' },
+      pose: {
+        position: { x: 1, y: 2, z: 0 },
+        orientation: { x: 0, y: 0, z: 0, w: 1 },
+      },
+    });
+    expect(client.node).toBeInstanceOf(globalThis.ROS2D.SceneNode);
+    expect(client.node.frame_id).toBe('map');
+    expect(client.node.pose.position.x).toBe(1);
+    expect(client.node.pose.position.y).toBe(2);
+    expect(client.marker.x).toBe(0);
+    expect(client.marker.y).toBe(0);
+  });
+
+  it('with tfClient: subsequent messages call setPose, not recreate', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const client = new globalThis.ROS2D.PoseStampedClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: new FakeContainer(), tfClient: tf,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({
+      header: { frame_id: 'map' },
+      pose: { position: { x: 1, y: 0, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } },
+    });
+    const firstNode = client.node;
+    topic.__emit({
+      header: { frame_id: 'map' },
+      pose: { position: { x: 5, y: 0, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } },
+    });
+    expect(client.node).toBe(firstNode);
+    expect(client.node.pose.position.x).toBe(5);
+  });
+
+  it('with tfClient: frame change triggers setFrame', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const client = new globalThis.ROS2D.PoseStampedClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: new FakeContainer(), tfClient: tf,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({
+      header: { frame_id: 'map' },
+      pose: { position: { x: 0, y: 0, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } },
+    });
+    topic.__emit({
+      header: { frame_id: 'robot_0/map' },
+      pose: { position: { x: 0, y: 0, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } },
+    });
+    expect(client.node.frame_id).toBe('robot_0/map');
+    expect(tf.__subscriberCount('map')).toBe(0);
+    expect(tf.__subscriberCount('robot_0/map')).toBe(1);
+  });
+
+  it('without tfClient: marker x/y set directly (unchanged)', () => {
+    const client = new globalThis.ROS2D.PoseStampedClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: new FakeContainer(),
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({
+      header: { frame_id: 'map' },
+      pose: { position: { x: 7, y: 3, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } },
+    });
+    expect(client.marker.x).toBe(7);
+    expect(client.marker.y).toBe(-3);
+    expect(client.node).toBeFalsy();
   });
 });
