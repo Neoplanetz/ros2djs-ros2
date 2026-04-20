@@ -79,7 +79,7 @@ const identityTransform = {
   rotation: { x: 0, y: 0, z: 0, w: 1 },
 };
 
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('ROS2D.SceneNode', () => {
   it('is hidden on construction until the first TF callback arrives', () => {
@@ -190,5 +190,93 @@ describe('ROS2D.SceneNode', () => {
     node.setPose(null);
     expect(node.x).toBe(0);
     expect(node.y).toBe(-0);
+  });
+
+  it('setFrame unsubscribes old frame and subscribes new one', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const node = new SceneNode({ tfClient: tf, frame_id: 'old' });
+    expect(tf.__subscriberCount('old')).toBe(1);
+    node.setFrame('new');
+    expect(tf.__subscriberCount('old')).toBe(0);
+    expect(tf.__subscriberCount('new')).toBe(1);
+    expect(node.frame_id).toBe('new');
+  });
+
+  it('setFrame resets visibility until the next TF arrives', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const node = new SceneNode({ tfClient: tf, frame_id: 'old' });
+    tf.__emit('old', identityTransform);
+    expect(node.visible).toBe(true);
+    node.setFrame('new');
+    expect(node.visible).toBe(false);
+    tf.__emit('new', identityTransform);
+    expect(node.visible).toBe(true);
+  });
+
+  it('setFrame with the same frame is a no-op', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const node = new SceneNode({ tfClient: tf, frame_id: 'same' });
+    tf.__emit('same', identityTransform);
+    const before = tf.__subscriberCount('same');
+    node.setFrame('same');
+    expect(tf.__subscriberCount('same')).toBe(before);
+    expect(node.visible).toBe(true); // visibility preserved
+  });
+
+  it('unsubscribe detaches from TF and ignores later emits', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const node = new SceneNode({ tfClient: tf, frame_id: 'f', pose: identityPose });
+    node.unsubscribe();
+    expect(tf.__subscriberCount('f')).toBe(0);
+    tf.__emit('f', {
+      translation: { x: 99, y: 99, z: 0 },
+      rotation: { x: 0, y: 0, z: 0, w: 1 },
+    });
+    expect(node.x).toBe(0); // never updated
+    expect(node.visible).toBe(false);
+  });
+
+  it('unsubscribe is idempotent', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const node = new SceneNode({ tfClient: tf, frame_id: 'f' });
+    node.unsubscribe();
+    expect(() => node.unsubscribe()).not.toThrow();
+  });
+
+  it('warns once if no TF arrives within 1 second', () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    new SceneNode({ tfClient: tf, frame_id: 'missing' });
+    vi.advanceTimersByTime(1001);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toMatch(/missing/);
+  });
+
+  it('does not warn when a TF arrives before the timer fires', () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    new SceneNode({ tfClient: tf, frame_id: 'ok' });
+    vi.advanceTimersByTime(500);
+    tf.__emit('ok', identityTransform);
+    vi.advanceTimersByTime(1000);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('two SceneNodes on different frames do not cross-contaminate', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const a = new SceneNode({ tfClient: tf, frame_id: 'map', pose: identityPose });
+    const b = new SceneNode({ tfClient: tf, frame_id: 'robot_0/map', pose: identityPose });
+    tf.__emit('map', {
+      translation: { x: 1, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0, w: 1 },
+    });
+    tf.__emit('robot_0/map', {
+      translation: { x: 5, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0, w: 1 },
+    });
+    expect(a.x).toBe(1);
+    expect(b.x).toBe(5);
   });
 });

@@ -45,12 +45,25 @@ ROS2D.SceneNode = function(options) {
   }
 
   this._onTF = function(transform) {
+    if (that._warnTimer) { clearTimeout(that._warnTimer); that._warnTimer = null; }
     that._latestTf = transform;
     that._applyLatest();
     that.visible = true;
   };
 
   this.tfClient.subscribe(this.frame_id, this._onTF);
+
+  // One-shot warning timer to surface frame_id typos without log spam.
+  this._warnTimer = setTimeout(function() {
+    if (!that._latestTf) {
+      console.warn(
+        'ROS2D.SceneNode: no TF received yet for frame \'' + that.frame_id +
+        '\' (fixedFrame=' + (that.tfClient.fixedFrame || '?') +
+        '); node will remain hidden until a transform arrives'
+      );
+    }
+    that._warnTimer = null;
+  }, 1000);
 };
 
 /**
@@ -109,6 +122,35 @@ ROS2D.SceneNode.prototype.setPose = function(newPose) {
   }
   if (this._latestTf) {
     this._applyLatest();
+  }
+};
+
+/**
+ * Change the TF frame this node tracks. Unsubscribes from the old frame,
+ * subscribes to the new one, and hides the node until the next TF arrives.
+ * A no-op if newFrameId equals the current frame.
+ *
+ * @param newFrameId - the new TF frame id
+ */
+ROS2D.SceneNode.prototype.setFrame = function(newFrameId) {
+  if (newFrameId === this.frame_id) { return; }
+  if (this._onTF) {
+    this.tfClient.unsubscribe(this.frame_id, this._onTF);
+  }
+  this.frame_id = newFrameId;
+  this._latestTf = null;
+  this.visible = false;
+  this.tfClient.subscribe(this.frame_id, this._onTF);
+};
+
+/**
+ * Detach from TF. Safe to call multiple times.
+ */
+ROS2D.SceneNode.prototype.unsubscribe = function() {
+  if (this._warnTimer) { clearTimeout(this._warnTimer); this._warnTimer = null; }
+  if (this._onTF) {
+    this.tfClient.unsubscribe(this.frame_id, this._onTF);
+    this._onTF = null;
   }
 };
 
