@@ -1,90 +1,86 @@
 /**
-* @fileOverview
-* @author Bart van Vliet - bart@dobots.nl
-*/
-
-/**
-* Add LaserScan to a view
-*
-* @constructor
-* @param options - object with following keys:
-*   * ros - ros
-*   * topicName - topicName
-*   * compression - compression
-*   * points - points
-*   * rosTopic - rosTopic
-*/
-
+ * @fileOverview
+ * A createjs.Container whose position/orientation is driven by a
+ * ROSLIB.TFClient (or ROSLIB.ROS2TFClient). On construction the node
+ * subscribes to tfClient for the given frame_id and stays hidden until
+ * the first TF callback arrives. Each callback composes TF x pose and
+ * writes the result into this.x/.y/.rotation. The Y-negate that maps ROS
+ * +Y up to canvas +Y down happens here, and here only, on the TF path.
+ *
+ * All child display objects of a SceneNode should therefore be laid out
+ * in ROS coordinates (no y negation).
+ *
+ * @constructor
+ * @param options
+ *   * tfClient (required) - ROSLIB.TFClient or ROSLIB.ROS2TFClient
+ *   * frame_id (required) - the TF frame this node lives in
+ *   * pose (optional)     - geometry_msgs/Pose within frame_id. Default identity.
+ *   * object (optional)   - a createjs.DisplayObject to add as a child
+ */
 ROS2D.SceneNode = function(options) {
-  THREE.Object3D.call(this);
+  createjs.Container.call(this);
   options = options || {};
+  if (!options.tfClient) {
+    throw new Error('ROS2D.SceneNode: options.tfClient is required');
+  }
+  if (!options.frame_id) {
+    throw new Error('ROS2D.SceneNode: options.frame_id is required');
+  }
   var that = this;
-  this.tfClient = options.tfClient;
-  this.frameID = options.frameID;
-  var object = options.object;
-  this.pose = options.pose || { position: { x: 0, y: 0, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } };
-  
-  // Do not render this object until we receive a TF update
-  this.visible = false;
-  
-  // add the model
-  this.add(object);
-  
-  // set the inital pose
-  this.updatePose(this.pose);
-  
-  // save the TF handler so we can remove it later
-  this.tfUpdate = function(msg) {
-    // apply the transform (inline of ROSLIB.Pose.applyTransform)
-    var tf = { translation: msg.translation, rotation: msg.rotation };
-    var pos = { x: that.pose.position.x, y: that.pose.position.y, z: that.pose.position.z };
-    var ori = { x: that.pose.orientation.x, y: that.pose.orientation.y,
-                z: that.pose.orientation.z, w: that.pose.orientation.w };
-    // pos.multiplyQuaternion(tf.rotation)
-    var q = tf.rotation;
-    var ix = q.w*pos.x + q.y*pos.z - q.z*pos.y;
-    var iy = q.w*pos.y + q.z*pos.x - q.x*pos.z;
-    var iz = q.w*pos.z + q.x*pos.y - q.y*pos.x;
-    var iw = -q.x*pos.x - q.y*pos.y - q.z*pos.z;
-    pos.x = ix*q.w + iw*(-q.x) + iy*(-q.z) - iz*(-q.y);
-    pos.y = iy*q.w + iw*(-q.y) + iz*(-q.x) - ix*(-q.z);
-    pos.z = iz*q.w + iw*(-q.z) + ix*(-q.y) - iy*(-q.x);
-    // pos.add(tf.translation)
-    pos.x += tf.translation.x;
-    pos.y += tf.translation.y;
-    pos.z += tf.translation.z;
-    // tmp = tf.rotation.clone(); tmp.multiply(ori)
-    var r = tf.rotation;
-    var newX = r.x*ori.w + r.y*ori.z - r.z*ori.y + r.w*ori.x;
-    var newY = -r.x*ori.z + r.y*ori.w + r.z*ori.x + r.w*ori.y;
-    var newZ = r.x*ori.y - r.y*ori.x + r.z*ori.w + r.w*ori.z;
-    var newW = -r.x*ori.x - r.y*ori.y - r.z*ori.z + r.w*ori.w;
-    ori = { x: newX, y: newY, z: newZ, w: newW };
-    var poseTransformed = { position: pos, orientation: ori };
 
-    // update the world
-    that.updatePose(poseTransformed);
+  this.tfClient = options.tfClient;
+  this.frame_id = options.frame_id;
+  this.pose = options.pose || {
+    position: { x: 0, y: 0, z: 0 },
+    orientation: { x: 0, y: 0, z: 0, w: 1 }
+  };
+
+  // Latest TF cached by our own callback; no reliance on BaseTFClient internals.
+  this._latestTf = null;
+
+  this.visible = false;
+
+  if (options.object) {
+    this.addChild(options.object);
+  }
+
+  this._onTF = function(transform) {
+    that._latestTf = transform;
+    that._applyLatest();
     that.visible = true;
   };
-  
-  // listen for TF updates
-  this.tfClient.subscribe(this.frameID, this.tfUpdate);
+
+  this.tfClient.subscribe(this.frame_id, this._onTF);
 };
-  
-ROS2D.SceneNode.prototype.__proto__ = THREE.Object3D.prototype;
-  
+
 /**
-* Set the pose of the associated model.
-*
-* @param pose - the pose to update with
-*/
-ROS2D.SceneNode.prototype.updatePose = function(pose) {
-  this.position.set( pose.position.x, pose.position.y, pose.position.z );
-  this.quaternion.set(pose.orientation.x, pose.orientation.y,
-    pose.orientation.z, pose.orientation.w);
-  this.updateMatrixWorld(true);
+ * Compose this.pose with this._latestTf and write the result to x/y/rotation.
+ * Y is negated here and here only so children render in ROS coordinates.
+ * @private
+ */
+ROS2D.SceneNode.prototype._applyLatest = function() {
+  if (!this._latestTf) {
+    return;
+  }
+  // Clone pose to avoid mutating user-supplied objects. ROSLIB.Pose.applyTransform
+  // does the 3D composition; we then map to 2D canvas.
+  var p = new ROSLIB.Pose({
+    position: {
+      x: this.pose.position.x,
+      y: this.pose.position.y,
+      z: this.pose.position.z
+    },
+    orientation: {
+      x: this.pose.orientation.x,
+      y: this.pose.orientation.y,
+      z: this.pose.orientation.z,
+      w: this.pose.orientation.w
+    }
+  });
+  p.applyTransform(this._latestTf);
+  this.x = p.position.x;
+  this.y = -p.position.y;
+  this.rotation = ROS2D.quaternionToGlobalTheta(p.orientation) + 0;
 };
-  
-ROS2D.SceneNode.prototype.unsubscribeTf = function() {
-  this.tfClient.unsubscribe(this.frameID, this.tfUpdate);
-};
+
+Object.setPrototypeOf(ROS2D.SceneNode.prototype, createjs.Container.prototype);
