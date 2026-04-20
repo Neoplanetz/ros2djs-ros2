@@ -83,4 +83,33 @@ ROS2D.SceneNode.prototype._applyLatest = function() {
   this.rotation = ROS2D.quaternionToGlobalTheta(p.orientation) + 0;
 };
 
+/**
+ * Update the local pose within frame_id. If a TF is already cached the
+ * result is composed and applied immediately; otherwise the node waits
+ * for the next TF callback.
+ *
+ * @param newPose - geometry_msgs/Pose or null (treated as identity)
+ */
+ROS2D.SceneNode.prototype.setPose = function(newPose) {
+  if (newPose) {
+    this.pose = {
+      position: {
+        x: newPose.position.x, y: newPose.position.y, z: newPose.position.z
+      },
+      orientation: {
+        x: newPose.orientation.x, y: newPose.orientation.y,
+        z: newPose.orientation.z, w: newPose.orientation.w
+      }
+    };
+  } else {
+    this.pose = {
+      position: { x: 0, y: 0, z: 0 },
+      orientation: { x: 0, y: 0, z: 0, w: 1 }
+    };
+  }
+  if (this._latestTf) {
+    this._applyLatest();
+  }
+};
+
 Object.setPrototypeOf(ROS2D.SceneNode.prototype, createjs.Container.prototype);

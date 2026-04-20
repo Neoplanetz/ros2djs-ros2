@@ -147,4 +147,48 @@ describe('ROS2D.SceneNode', () => {
     expect(node.x).toBe(11);
     expect(node.y).toBe(-22);
   });
+
+  it('setPose with no cached TF stores pose and stays hidden', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const node = new SceneNode({ tfClient: tf, frame_id: 'base_link' });
+    node.setPose({
+      position: { x: 5, y: 6, z: 0 },
+      orientation: { x: 0, y: 0, z: 0, w: 1 },
+    });
+    expect(node.visible).toBe(false);
+    expect(node.x).toBe(0); // unchanged
+  });
+
+  it('setPose with a cached TF re-applies immediately', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const node = new SceneNode({ tfClient: tf, frame_id: 'base_link', pose: identityPose });
+    tf.__emit('base_link', {
+      translation: { x: 10, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0, w: 1 },
+    });
+    expect(node.x).toBe(10);
+    node.setPose({
+      position: { x: 1, y: 2, z: 0 },
+      orientation: { x: 0, y: 0, z: 0, w: 1 },
+    });
+    // pose.x + tf.translation.x = 11; pose.y negated = -2
+    expect(node.x).toBe(11);
+    expect(node.y).toBe(-2);
+  });
+
+  it('setPose(null) is treated as identity', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const node = new SceneNode({
+      tfClient: tf,
+      frame_id: 'base_link',
+      pose: { position: { x: 5, y: 0, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } },
+    });
+    tf.__emit('base_link', {
+      translation: { x: 0, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0, w: 1 },
+    });
+    node.setPose(null);
+    expect(node.x).toBe(0);
+    expect(node.y).toBe(-0);
+  });
 });
