@@ -205,6 +205,42 @@ describe('ROS2D.Marker', () => {
     expect(warn).toHaveBeenCalled();
   });
 
+  it('with applyPose:true (default) sets x/y/rotation from message.pose', () => {
+    const m = new Marker({
+      message: {
+        type: 1, action: 0, ns: '', id: 0,
+        header: { frame_id: 'map' },
+        pose: {
+          position: { x: 3, y: 4, z: 0 },
+          orientation: { x: 0, y: 0, z: 0, w: 1 },
+        },
+        scale: { x: 1, y: 1, z: 1 },
+        color: { r: 1, g: 1, b: 1, a: 1 },
+      },
+    });
+    expect(m.x).toBe(3);
+    expect(m.y).toBe(-4);
+  });
+
+  it('with applyPose:false leaves x/y/rotation at container defaults', () => {
+    const m = new Marker({
+      applyPose: false,
+      message: {
+        type: 1, action: 0, ns: '', id: 0,
+        header: { frame_id: 'map' },
+        pose: {
+          position: { x: 3, y: 4, z: 0 },
+          orientation: { x: 0, y: 0, z: 0, w: 1 },
+        },
+        scale: { x: 1, y: 1, z: 1 },
+        color: { r: 1, g: 1, b: 1, a: 1 },
+      },
+    });
+    expect(m.x).toBe(0);
+    expect(m.y).toBe(0);
+    expect(m.rotation).toBe(0);
+  });
+
   it('uses per-point colors when message.colors is provided for *_LIST types', () => {
     const m = new Marker({
       message: {

@@ -19,6 +19,9 @@
  * @constructor
  * @param {Object} options
  * @param {Object} options.message - a visualization_msgs/Marker message
+ * @param {boolean} [options.applyPose=true] - when false the marker does not
+ *   set its own x/y/rotation; the caller (typically ROS2D.SceneNode)
+ *   positions the marker externally
  */
 ROS2D.Marker = function(options) {
   createjs.Container.call(this);
@@ -178,9 +181,14 @@ ROS2D.Marker = function(options) {
       break;
   }
 
-  this.x = pose.position.x;
-  this.y = -pose.position.y;
-  this.rotation = ROS2D.quaternionToGlobalTheta(pose.orientation);
+  // Default true: preserve v1.2 behavior. MarkerArrayClient passes false
+  // when the marker is wrapped in a ROS2D.SceneNode that positions it.
+  var applyPose = options.applyPose !== false;
+  if (applyPose) {
+    this.x = pose.position.x;
+    this.y = -pose.position.y;
+    this.rotation = ROS2D.quaternionToGlobalTheta(pose.orientation);
+  }
 };
 
 /**
