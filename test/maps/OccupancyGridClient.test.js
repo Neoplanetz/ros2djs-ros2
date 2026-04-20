@@ -69,13 +69,16 @@ class FakeShape {
   constructor(_graphics) {}
 }
 
-class FakeContainer {
-  constructor() {}
-  addChild() {}
-  getChildIndex() { return -1; }
-  removeChild() {}
-  addChildAt() {}
+function FakeContainer() {
+  this.children = [];
+  this.x = 0; this.y = 0; this.rotation = 0; this.visible = true;
 }
+FakeContainer.prototype.addChild = function(c) { this.children.push(c); return this; };
+FakeContainer.prototype.getChildIndex = function(c) { return this.children.indexOf(c); };
+FakeContainer.prototype.removeChild = function(c) {
+  const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1);
+};
+FakeContainer.prototype.addChildAt = function(c, i) { this.children.splice(i, 0, c); };
 
 globalThis.createjs = {
   Graphics: FakeGraphics,
@@ -112,6 +115,23 @@ globalThis.ROS2D.OccupancyGrid = function FakeOccupancyGrid(options) {
 };
 globalThis.ROS2D.OccupancyGrid.prototype.__proto__ = FakeBitmap.prototype;
 
+globalThis.ROS2D.quaternionToGlobalTheta = function() { return 0; };
+globalThis.ROSLIB.Pose = function(options) {
+  this.position = { x: options.position.x, y: options.position.y, z: options.position.z };
+  this.orientation = {
+    x: options.orientation.x, y: options.orientation.y,
+    z: options.orientation.z, w: options.orientation.w
+  };
+};
+globalThis.ROSLIB.Pose.prototype.applyTransform = function(tf) {
+  this.position = {
+    x: this.position.x + tf.translation.x,
+    y: this.position.y + tf.translation.y,
+    z: this.position.z + tf.translation.z,
+  };
+};
+
+await import('../../src/visualization/SceneNode.js');
 await import('../../src/maps/OccupancyGridClient.js');
 
 describe('OccupancyGridClient (baseline, v1 API)', () => {
@@ -149,5 +169,54 @@ describe('OccupancyGridClient (baseline, v1 API)', () => {
     const topic = fake.topics[fake.topics.length - 1];
     topic.__emit({ info: { width: 10, height: 10, resolution: 0.1, origin: { position: { x: 0, y: 0 }, orientation: {} } }, data: new Array(100).fill(0) });
     expect(onChange).toHaveBeenCalledOnce();
+  });
+
+  function fakeMapMsg(frame) {
+    return {
+      header: { frame_id: frame },
+      info: {
+        width: 10, height: 10, resolution: 0.1,
+        origin: {
+          position: { x: 0, y: 0, z: 0 },
+          orientation: { x: 0, y: 0, z: 0, w: 1 },
+        },
+      },
+      data: new Array(100).fill(0),
+    };
+  }
+
+  it('with tfClient: map message creates a SceneNode wrap at the map frame', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const root = new FakeContainer();
+    const client = new globalThis.ROS2D.OccupancyGridClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root, tfClient: tf, continuous: true,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit(fakeMapMsg('robot_0/map'));
+    expect(client.node).toBeInstanceOf(globalThis.ROS2D.SceneNode);
+    expect(client.node.frame_id).toBe('robot_0/map');
+    expect(tf.__subscriberCount('robot_0/map')).toBe(1);
+  });
+
+  it('with tfClient: unsubscribe detaches from TF', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const root = new FakeContainer();
+    const client = new globalThis.ROS2D.OccupancyGridClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root, tfClient: tf, continuous: true,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit(fakeMapMsg('robot_0/map'));
+    client.unsubscribe();
+    expect(tf.__subscriberCount('robot_0/map')).toBe(0);
+  });
+
+  it('without tfClient: behavior unchanged (no node)', () => {
+    const root = new FakeContainer();
+    const client = new globalThis.ROS2D.OccupancyGridClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root, continuous: true,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit(fakeMapMsg('map'));
+    expect(client.node).toBeFalsy();
   });
 });
