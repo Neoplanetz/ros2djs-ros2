@@ -36,6 +36,26 @@ globalThis.ROS2D.PathShape = function FakePathShape(opts) {
 globalThis.ROS2D.PathShape.prototype.setPath = function(p) { this.paths.push(p); };
 globalThis.ROS2D.PathShape.prototype.__proto__ = FakeShape.prototype;
 
+// SceneNode uses ROSLIB.Pose; stub it the same way SceneNode.test does.
+globalThis.ROSLIB.Pose = function(options) {
+  this.position = {
+    x: options.position.x, y: options.position.y, z: options.position.z
+  };
+  this.orientation = {
+    x: options.orientation.x, y: options.orientation.y,
+    z: options.orientation.z, w: options.orientation.w
+  };
+};
+globalThis.ROSLIB.Pose.prototype.applyTransform = function(tf) {
+  this.position = {
+    x: this.position.x + tf.translation.x,
+    y: this.position.y + tf.translation.y,
+    z: this.position.z + tf.translation.z,
+  };
+};
+globalThis.ROS2D.quaternionToGlobalTheta = function() { return 0; };
+
+await import('../../src/visualization/SceneNode.js');
 await import('../../src/clients/PathClient.js');
 const PathClient = globalThis.ROS2D.PathClient;
 
@@ -82,5 +102,56 @@ describe('ROS2D.PathClient', () => {
     c.unsubscribe();
     expect(topic._subs).toHaveLength(0);
     expect(root.children).not.toContain(c.pathShape);
+  });
+
+  it('with tfClient: first message creates a SceneNode wrapping pathShape', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const root = new FakeContainer();
+    const client = new globalThis.ROS2D.PathClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root, tfClient: tf,
+    });
+    expect(client.node).toBeFalsy();
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({ header: { frame_id: 'map' }, poses: [] });
+    expect(client.node).toBeInstanceOf(globalThis.ROS2D.SceneNode);
+    expect(client.node.frame_id).toBe('map');
+    expect(root.children).toContain(client.node);
+    expect(root.children).not.toContain(client.pathShape);
+  });
+
+  it('with tfClient: frame_id change triggers setFrame', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const root = new FakeContainer();
+    const client = new globalThis.ROS2D.PathClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root, tfClient: tf,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({ header: { frame_id: 'map' }, poses: [] });
+    expect(tf.__subscriberCount('map')).toBe(1);
+    topic.__emit({ header: { frame_id: 'robot_0/map' }, poses: [] });
+    expect(tf.__subscriberCount('map')).toBe(0);
+    expect(tf.__subscriberCount('robot_0/map')).toBe(1);
+    expect(client.node.frame_id).toBe('robot_0/map');
+  });
+
+  it('with tfClient: unsubscribe() detaches from TF', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const root = new FakeContainer();
+    const client = new globalThis.ROS2D.PathClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root, tfClient: tf,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({ header: { frame_id: 'map' }, poses: [] });
+    client.unsubscribe();
+    expect(tf.__subscriberCount('map')).toBe(0);
+  });
+
+  it('without tfClient: pathShape is added directly to rootObject (unchanged)', () => {
+    const root = new FakeContainer();
+    const client = new globalThis.ROS2D.PathClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root,
+    });
+    expect(root.children).toContain(client.pathShape);
+    expect(client.node).toBeFalsy();
   });
 });
