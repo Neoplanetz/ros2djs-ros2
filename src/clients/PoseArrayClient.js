@@ -36,10 +36,15 @@ ROS2D.PoseArrayClient = function(options) {
     fillColor: options.fillColor
   };
 
+  this.tfClient = options.tfClient || null;
+  this.node = null;
+
   // A dedicated container so we can wipe it on every message without
   // touching siblings that the caller may have added to rootObject.
   this.container = new createjs.Container();
-  this.rootObject.addChild(this.container);
+  if (!this.tfClient) {
+    this.rootObject.addChild(this.container);
+  }
 
   this.rosTopic = new ROSLIB.Topic({
     ros: ros,
@@ -48,6 +53,19 @@ ROS2D.PoseArrayClient = function(options) {
   });
 
   this.rosTopic.subscribe(function(message) {
+    if (that.tfClient) {
+      var frame = (message && message.header && message.header.frame_id) || '';
+      if (!that.node) {
+        that.node = new ROS2D.SceneNode({
+          tfClient: that.tfClient,
+          frame_id: frame,
+          object: that.container
+        });
+        that.rootObject.addChild(that.node);
+      } else if (that.node.frame_id !== frame) {
+        that.node.setFrame(frame);
+      }
+    }
     that._render(message);
     that.emit('change');
   });
@@ -60,6 +78,7 @@ ROS2D.PoseArrayClient = function(options) {
 ROS2D.PoseArrayClient.prototype._render = function(message) {
   this._clearContainer();
   var poses = (message && message.poses) || [];
+  var negateY = !this.tfClient; // SceneNode handles negation on TF path
   for (var i = 0; i < poses.length; i++) {
     var pose = poses[i];
     if (!pose || !pose.position) {
@@ -67,7 +86,7 @@ ROS2D.PoseArrayClient.prototype._render = function(message) {
     }
     var arrow = new ROS2D.NavigationArrow(this._arrowOptions);
     arrow.x = pose.position.x;
-    arrow.y = -pose.position.y;
+    arrow.y = negateY ? -pose.position.y : pose.position.y;
     arrow.rotation = ROS2D.quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
     this.container.addChild(arrow);
   }
@@ -96,7 +115,11 @@ ROS2D.PoseArrayClient.prototype.unsubscribe = function() {
     this.rosTopic.unsubscribe();
   }
   this._clearContainer();
-  if (this.container && this.rootObject) {
+  if (this.node) {
+    this.node.unsubscribe();
+    this.rootObject.removeChild(this.node);
+    this.node = null;
+  } else if (this.container && this.rootObject) {
     this.rootObject.removeChild(this.container);
   }
 };

@@ -32,6 +32,22 @@ globalThis.ROS2D.NavigationArrow = function FakeArrow(opts) {
 };
 globalThis.ROS2D.NavigationArrow.prototype.__proto__ = FakeShape.prototype;
 
+globalThis.ROSLIB.Pose = function(options) {
+  this.position = { x: options.position.x, y: options.position.y, z: options.position.z };
+  this.orientation = {
+    x: options.orientation.x, y: options.orientation.y,
+    z: options.orientation.z, w: options.orientation.w
+  };
+};
+globalThis.ROSLIB.Pose.prototype.applyTransform = function(tf) {
+  this.position = {
+    x: this.position.x + tf.translation.x,
+    y: this.position.y + tf.translation.y,
+    z: this.position.z + tf.translation.z,
+  };
+};
+
+await import('../../src/visualization/SceneNode.js');
 await import('../../src/clients/PoseArrayClient.js');
 const PoseArrayClient = globalThis.ROS2D.PoseArrayClient;
 
@@ -89,5 +105,66 @@ describe('ROS2D.PoseArrayClient', () => {
     expect(topic._subs).toHaveLength(0);
     expect(c.container.children).toHaveLength(0);
     expect(root.children).not.toContain(c.container);
+  });
+
+  it('with tfClient: first message creates outer SceneNode wrapping the container', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const root = new FakeContainer();
+    const client = new globalThis.ROS2D.PoseArrayClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root, tfClient: tf,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({
+      header: { frame_id: 'map' },
+      poses: [
+        { position: { x: 1, y: 2, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } },
+      ],
+    });
+    expect(client.node).toBeInstanceOf(globalThis.ROS2D.SceneNode);
+    // The arrow inside the SceneNode's container keeps ROS y (not negated).
+    const arrow = client.container.children[0];
+    expect(arrow.x).toBe(1);
+    expect(arrow.y).toBe(2);
+  });
+
+  it('without tfClient: arrows still use -y (unchanged)', () => {
+    const root = new FakeContainer();
+    const client = new globalThis.ROS2D.PoseArrayClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({
+      header: { frame_id: 'map' },
+      poses: [
+        { position: { x: 1, y: 2, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } },
+      ],
+    });
+    const arrow = client.container.children[0];
+    expect(arrow.x).toBe(1);
+    expect(arrow.y).toBe(-2);
+    expect(client.node).toBeFalsy();
+  });
+
+  it('with tfClient: frame change triggers setFrame', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const client = new globalThis.ROS2D.PoseArrayClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: new FakeContainer(), tfClient: tf,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({ header: { frame_id: 'map' }, poses: [] });
+    topic.__emit({ header: { frame_id: 'robot_0/map' }, poses: [] });
+    expect(tf.__subscriberCount('map')).toBe(0);
+    expect(tf.__subscriberCount('robot_0/map')).toBe(1);
+  });
+
+  it('with tfClient: unsubscribe detaches from TF', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const client = new globalThis.ROS2D.PoseArrayClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: new FakeContainer(), tfClient: tf,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({ header: { frame_id: 'map' }, poses: [] });
+    client.unsubscribe();
+    expect(tf.__subscriberCount('map')).toBe(0);
   });
 });
