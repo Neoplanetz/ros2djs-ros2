@@ -5,10 +5,11 @@
  * standard actions (ADD/MODIFY/DELETE/DELETEALL) and lifetime-based
  * automatic removal.
  *
- * frame_id is intentionally ignored in the v1 implementation; marker
- * poses are rendered directly in the rootObject's coordinate frame, the
- * same convention used by ROS2D.OccupancyGridClient. A tfClient option
- * slot is reserved for a future TF-aware extension.
+ * When a tfClient is supplied each marker is wrapped in a ROS2D.SceneNode
+ * that subscribes to the marker's own header.frame_id, so multi-robot
+ * arrays with mixed frames render correctly. Without tfClient the client
+ * falls back to the v1 behavior of rendering poses directly in the
+ * rootObject's coordinate frame.
  *
  * Emits the following events:
  *   * 'change' - one or more markers were added, modified, or removed
@@ -18,7 +19,9 @@
  *   * ros - the ROSLIB.Ros connection handle
  *   * topic (optional) - the marker topic to listen to, defaults to '/markers'
  *   * rootObject (optional) - the root createjs object to add markers to
- *   * tfClient (optional, RESERVED) - currently logs a warning and is ignored
+ *   * tfClient (optional) - ROSLIB.TFClient or ROSLIB.ROS2TFClient; when
+ *       present, each marker is wrapped in a ROS2D.SceneNode keyed on
+ *       its own header.frame_id.
  */
 ROS2D.MarkerArrayClient = function(options) {
   EventEmitter.call(this);
@@ -27,13 +30,9 @@ ROS2D.MarkerArrayClient = function(options) {
   var ros = options.ros;
   this.topicName = options.topic || '/markers';
   this.rootObject = options.rootObject || new createjs.Container();
-  if (options.tfClient) {
-    console.warn(
-      'ROS2D.MarkerArrayClient: tfClient option is reserved but not yet implemented; frame_id will be ignored.'
-    );
-  }
+  this.tfClient = options.tfClient || null;
 
-  // key = ns + ':' + id  ->  { obj: ROS2D.Marker, timer: timeoutId|null }
+  // key = ns + ':' + id  ->  { obj: child, node: SceneNode|null, timer: timeoutId|null }
   this.markers = {};
 
   this.rosTopic = new ROSLIB.Topic({
@@ -69,9 +68,22 @@ ROS2D.MarkerArrayClient.prototype._handleMarker = function(m) {
   }
   // ADD or MODIFY
   this._removeMarker(key);
-  var obj = new ROS2D.Marker({ message: m });
-  this.rootObject.addChild(obj);
-  var entry = { obj: obj, timer: null };
+  var child;
+  var sceneNode = null;
+  if (this.tfClient) {
+    var shape = new ROS2D.Marker({ message: m, applyPose: false });
+    sceneNode = new ROS2D.SceneNode({
+      tfClient: this.tfClient,
+      frame_id: (m.header && m.header.frame_id) || '',
+      pose: m.pose,
+      object: shape
+    });
+    child = sceneNode;
+  } else {
+    child = new ROS2D.Marker({ message: m });
+  }
+  this.rootObject.addChild(child);
+  var entry = { obj: child, node: sceneNode, timer: null };
   var lifeSec = (m.lifetime && m.lifetime.sec) || 0;
   var lifeNs = (m.lifetime && m.lifetime.nanosec) || 0;
   if (lifeSec > 0 || lifeNs > 0) {
@@ -96,6 +108,9 @@ ROS2D.MarkerArrayClient.prototype._removeMarker = function(key) {
   if (entry.timer) {
     clearTimeout(entry.timer);
   }
+  if (entry.node) {
+    entry.node.unsubscribe();
+  }
   this.rootObject.removeChild(entry.obj);
   delete this.markers[key];
 };
@@ -106,6 +121,9 @@ ROS2D.MarkerArrayClient.prototype._clearAll = function() {
       var entry = this.markers[k];
       if (entry.timer) {
         clearTimeout(entry.timer);
+      }
+      if (entry.node) {
+        entry.node.unsubscribe();
       }
       this.rootObject.removeChild(entry.obj);
     }

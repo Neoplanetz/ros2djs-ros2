@@ -55,6 +55,26 @@ globalThis.ROS2D.ArrowShape = function FakeArrowShape(opts) {
 };
 globalThis.ROS2D.ArrowShape.prototype = Object.create(FakeContainer.prototype);
 
+// SceneNode uses ROSLIB.Pose; stub it the same way SceneNode.test does.
+globalThis.ROSLIB.Pose = function(options) {
+  this.position = {
+    x: options.position.x, y: options.position.y, z: options.position.z
+  };
+  this.orientation = {
+    x: options.orientation.x, y: options.orientation.y,
+    z: options.orientation.z, w: options.orientation.w
+  };
+};
+globalThis.ROSLIB.Pose.prototype.applyTransform = function(tf) {
+  this.position = {
+    x: this.position.x + tf.translation.x,
+    y: this.position.y + tf.translation.y,
+    z: this.position.z + tf.translation.z,
+  };
+  // Orientation composition not needed for these tests (tf rotation = identity).
+};
+
+await import('../../src/visualization/SceneNode.js');
 await import('../../src/markers/Marker.js');
 await import('../../src/markers/MarkerArrayClient.js');
 
@@ -98,10 +118,88 @@ describe('ROS2D.MarkerArrayClient', () => {
     expect(topic.name).toBe('/visualization_marker_array');
   });
 
-  it('warns when tfClient option is supplied (reserved, not yet implemented)', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    new MarkerArrayClient({ ros: new fake.ROSLIB.Ros(), tfClient: { subscribe: () => {} } });
-    expect(warn).toHaveBeenCalled();
+  it('with tfClient: each ADD creates a SceneNode wrapping a Marker({applyPose:false})', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const root = new FakeContainer();
+    const client = new MarkerArrayClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root, tfClient: tf,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({ markers: [cubeMsg('a', 1, 0)] });
+    expect(root.children).toHaveLength(1);
+    // The child is the SceneNode; the Marker is inside it.
+    const node = root.children[0];
+    expect(node).toBeInstanceOf(globalThis.ROS2D.SceneNode);
+    expect(node.frame_id).toBe('map');
+    expect(client.markers['a:1']).toBeDefined();
+    expect(tf.__subscriberCount('map')).toBe(1);
+  });
+
+  it('with tfClient: DELETE unsubscribes the SceneNode', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const root = new FakeContainer();
+    const client = new MarkerArrayClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root, tfClient: tf,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({ markers: [cubeMsg('a', 1, 0)] });
+    expect(tf.__subscriberCount('map')).toBe(1);
+    topic.__emit({ markers: [cubeMsg('a', 1, 2)] }); // DELETE
+    expect(tf.__subscriberCount('map')).toBe(0);
+    expect(client.markers['a:1']).toBeUndefined();
+  });
+
+  it('with tfClient: DELETEALL unsubscribes every SceneNode', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const root = new FakeContainer();
+    new MarkerArrayClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root, tfClient: tf,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({ markers: [cubeMsg('a', 1, 0), cubeMsg('b', 2, 0)] });
+    expect(tf.__subscriberCount('map')).toBe(2);
+    topic.__emit({ markers: [cubeMsg('', 0, 3)] }); // DELETEALL
+    expect(tf.__subscriberCount('map')).toBe(0);
+  });
+
+  it('with tfClient: unsubscribe() drops all SceneNode subscriptions', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const root = new FakeContainer();
+    const client = new MarkerArrayClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root, tfClient: tf,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({ markers: [cubeMsg('a', 1, 0), cubeMsg('b', 2, 0)] });
+    client.unsubscribe();
+    expect(tf.__subscriberCount('map')).toBe(0);
+    expect(root.children).toHaveLength(0);
+  });
+
+  it('with tfClient: multi-frame markers subscribe separately', () => {
+    const tf = new fake.FakeTFClient({ fixedFrame: 'map' });
+    const root = new FakeContainer();
+    new MarkerArrayClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root, tfClient: tf,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    const m1 = cubeMsg('a', 1, 0); m1.header.frame_id = 'map';
+    const m2 = cubeMsg('b', 2, 0); m2.header.frame_id = 'robot_0/map';
+    topic.__emit({ markers: [m1, m2] });
+    expect(tf.__subscriberCount('map')).toBe(1);
+    expect(tf.__subscriberCount('robot_0/map')).toBe(1);
+  });
+
+  it('without tfClient: existing rootObject-frame behavior is unchanged', () => {
+    const root = new FakeContainer();
+    const client = new MarkerArrayClient({
+      ros: new fake.ROSLIB.Ros(), rootObject: root,
+    });
+    const topic = fake.topics[fake.topics.length - 1];
+    topic.__emit({ markers: [cubeMsg('a', 1, 0)] });
+    // No SceneNode wrapping — the direct child is a Marker.
+    const child = root.children[0];
+    expect(child).not.toBeInstanceOf(globalThis.ROS2D.SceneNode);
+    expect(client.markers['a:1']).toBeDefined();
   });
 
   it('ADD action adds a child to rootObject and stores under ns:id key', () => {
