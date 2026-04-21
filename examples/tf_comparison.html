@@ -16,7 +16,8 @@
   code, pre { background: #eee; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
   pre { padding: 8px; overflow: auto; }
   ol li { margin: 6px 0; }
-  #status { font-family: monospace; padding: 6px; background: #eee; border: 1px solid #ccc; margin-top: 8px; font-size: 12px; white-space: pre-wrap; }
+  #status, #debug { font-family: monospace; padding: 6px; background: #eee; border: 1px solid #ccc; margin-top: 8px; font-size: 12px; white-space: pre-wrap; }
+  #debug { background: #fffbe5; border-color: #d0c070; min-height: 20px; }
   .hint { color: #555; font-size: 12px; }
   button { margin-right: 6px; }
 </style>
@@ -216,7 +217,7 @@
             ' rotation=' + e2.node.rotation);
         }
       }
-      setStatus(log.join('\n'));
+      document.getElementById('debug').textContent = log.join('\n');
     };
   }
 
@@ -291,6 +292,7 @@
   </div>
 
   <div id="status">initializing…</div>
+  <div id="debug">click "Inject fake" to dump diagnostics here</div>
 
   <h3>Multi-robot scenario</h3>
   <p class="hint">For the multi-robot case, run two static publishers and one MarkerArray whose markers use mixed <code>robot_0/odom</code> and <code>robot_1/odom</code> frame_ids. Without tfClient they collapse to one spot; with tfClient they separate.</p>
