@@ -24,6 +24,90 @@
 <script src="../build/ros2d.min.js"></script>
 
 <script>
+  /**
+   * Minimal TF client that subscribes to /tf directly and dispatches
+   * transforms to ROS2D.SceneNode callbacks.
+   *
+   * Why not ROSLIB.TFClient? roslib v1's TFClient relies on the
+   * tf2_web_republisher ROS 1 service, which isn't typically running
+   * on ROS 2 setups. roslib v2's ROS2TFClient would work but requires
+   * ESM loading that complicates a single-file demo.
+   *
+   * This shim implements the duck-typed interface that ROS2D.SceneNode
+   * expects — subscribe(frameID, cb), unsubscribe(frameID, cb),
+   * fixedFrame — by tracking only direct children of fixedFrame.
+   * For the demo's static_transform_publisher setup that's sufficient.
+   */
+  function makeDirectTfClient(ros, fixedFrame) {
+    var client = {
+      fixedFrame: fixedFrame,
+      _subs: {},            // frameID -> [callbacks]
+      _latest: {},          // frameID -> last transform
+      subscribe: function(frameID, cb) {
+        if (!this._subs[frameID]) { this._subs[frameID] = []; }
+        this._subs[frameID].push(cb);
+        // Replay latest if we already have one for this frame.
+        if (this._latest[frameID]) { cb(this._latest[frameID]); }
+      },
+      unsubscribe: function(frameID, cb) {
+        var arr = this._subs[frameID];
+        if (!arr) { return; }
+        var i = arr.indexOf(cb);
+        if (i >= 0) { arr.splice(i, 1); }
+      },
+      _dispatch: function(frameID, tf) {
+        this._latest[frameID] = tf;
+        var arr = this._subs[frameID];
+        if (!arr) { return; }
+        arr.slice().forEach(function(cb) { cb(tf); });
+      }
+    };
+
+    var topic = new ROSLIB.Topic({
+      ros: ros,
+      name: '/tf',
+      messageType: 'tf2_msgs/msg/TFMessage'
+    });
+    topic.subscribe(function(msg) {
+      var tfs = msg.transforms || [];
+      for (var i = 0; i < tfs.length; i++) {
+        var t = tfs[i];
+        var parent = t.header && t.header.frame_id;
+        var child = t.child_frame_id;
+        // Only handle direct map->X hops for the demo.
+        if (parent === fixedFrame && child) {
+          client._dispatch(child, {
+            translation: t.transform.translation,
+            rotation: t.transform.rotation
+          });
+        }
+      }
+    });
+
+    // Also read /tf_static, which static_transform_publisher uses.
+    var staticTopic = new ROSLIB.Topic({
+      ros: ros,
+      name: '/tf_static',
+      messageType: 'tf2_msgs/msg/TFMessage'
+    });
+    staticTopic.subscribe(function(msg) {
+      var tfs = msg.transforms || [];
+      for (var i = 0; i < tfs.length; i++) {
+        var t = tfs[i];
+        var parent = t.header && t.header.frame_id;
+        var child = t.child_frame_id;
+        if (parent === fixedFrame && child) {
+          client._dispatch(child, {
+            translation: t.transform.translation,
+            rotation: t.transform.rotation
+          });
+        }
+      }
+    });
+
+    return client;
+  }
+
   function makeViewer(divID) {
     var viewer = new ROS2D.Viewer({
       divID: divID,
@@ -49,21 +133,12 @@
     ros.on('error',      function (e) { setStatus('error: ' + (e && e.message || e)); });
     ros.on('close',      function ()  { setStatus('connection closed'); });
 
-    // Shared TFClient for the right-hand canvas. fixedFrame is the
-    // canvas's "world" — anything published in another frame will be
-    // transformed into fixedFrame.
-    var tfClient = new ROSLIB.TFClient({
-      ros: ros,
-      fixedFrame: 'map',
-      angularThres: 0.01,
-      transThres: 0.01,
-      rate: 10.0
-    });
+    var tfClient = makeDirectTfClient(ros, 'map');
 
     var leftViewer  = makeViewer('left');
     var rightViewer = makeViewer('right');
 
-    // LEFT: no tfClient. frame_id is ignored. Pose is drawn as-is.
+    // LEFT: no tfClient. frame_id is ignored. Marker pose drawn as-is.
     var leftClient = new ROS2D.MarkerArrayClient({
       ros: ros,
       topic: '/tf_demo_markers',
@@ -84,8 +159,10 @@
       msgCount++;
       var left = Object.keys(leftClient.markers).length;
       var right = Object.keys(rightClient.markers).length;
-      setStatus('connected · messages: ' + msgCount +
-                ' · left markers: ' + left + ' · right markers: ' + right);
+      var frames = Object.keys(tfClient._latest).join(', ') || '(none yet)';
+      setStatus('connected · msgs: ' + msgCount +
+                ' · L: ' + left + ' · R: ' + right +
+                ' · tf frames: ' + frames);
     }
     leftClient.on('change', onChange);
     rightClient.on('change', onChange);
@@ -96,7 +173,7 @@
 <body onload="init()">
   <h1>TFClient Comparison — v1.3</h1>
   <p class="hint">
-    rosbridge: <code id="wsurl">…</code> · Both canvases subscribe to the same <code>/tf_demo_markers</code> topic. Left ignores <code>header.frame_id</code> (v1.2 behavior). Right composes the pose with <code>map ← frame_id</code> via TFClient (v1.3 new path).
+    rosbridge: <code id="wsurl">…</code> · Both canvases subscribe to the same <code>/tf_demo_markers</code> topic. Left ignores <code>header.frame_id</code> (v1.2 behavior). Right composes the pose with <code>map ← frame_id</code> via a TF client (v1.3 new path).
   </p>
 
   <h3>Setup (ROS 2, 2 terminals besides rosbridge)</h3>
@@ -106,7 +183,7 @@
       <pre>ros2 run tf2_ros static_transform_publisher --x 3 --y 2 --z 0 --roll 0 --pitch 0 --yaw 0 --frame-id map --child-frame-id test_frame</pre>
     </li>
     <li>
-      <b>Publish a marker</b> at the origin of <code>test_frame</code> (run repeatedly or with <code>-r 1</code>):
+      <b>Publish a marker</b> at the origin of <code>test_frame</code> (1 Hz):
       <pre>ros2 topic pub /tf_demo_markers visualization_msgs/msg/MarkerArray "{markers: [{header: {frame_id: 'test_frame'}, ns: 'demo', id: 1, type: 1, action: 0, pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}, scale: {x: 0.5, y: 0.5, z: 0.5}, color: {r: 1.0, g: 0.2, b: 0.2, a: 1.0}}]}" -r 1</pre>
     </li>
   </ol>
