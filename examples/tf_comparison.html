@@ -175,13 +175,48 @@
       });
     };
     document.getElementById('btn-inject').onclick = function() {
-      // Manually inject a fake map->test_frame transform at (3, 2),
-      // to prove the SceneNode path works without real ROS TF.
-      tfClient._dispatch('test_frame', {
+      var log = [];
+      function L(s) { log.push(s); console.log('[DIAG]', s); }
+      L('ROSLIB exists: ' + (typeof ROSLIB !== 'undefined'));
+      L('ROSLIB.Pose: ' + (ROSLIB && typeof ROSLIB.Pose));
+      L('ROSLIB.Pose.prototype.applyTransform: ' +
+        (ROSLIB && ROSLIB.Pose && typeof ROSLIB.Pose.prototype.applyTransform));
+      L('ROSLIB.Transform: ' + (ROSLIB && typeof ROSLIB.Transform));
+      var subs = tfClient._subs['test_frame'] || [];
+      L('subscribers on test_frame: ' + subs.length);
+      L('rightClient markers: ' + Object.keys(rightClient.markers).length);
+      for (var k in rightClient.markers) {
+        var entry = rightClient.markers[k];
+        L('  marker ' + k + ': node=' + !!entry.node +
+          ', node.frame_id=' + (entry.node && entry.node.frame_id) +
+          ', node.visible=' + (entry.node && entry.node.visible) +
+          ', node.x=' + (entry.node && entry.node.x) +
+          ', node.y=' + (entry.node && entry.node.y));
+      }
+      // Invoke each subscriber callback directly with try/catch so any
+      // error inside SceneNode._onTF or _applyLatest surfaces.
+      var fakeTf = {
         translation: { x: 3, y: 2, z: 0 },
         rotation: { x: 0, y: 0, z: 0, w: 1 }
+      };
+      subs.forEach(function(cb, i) {
+        try {
+          cb(fakeTf);
+          L('subscriber[' + i + '] invoked OK');
+        } catch (e) {
+          L('subscriber[' + i + '] THREW: ' + (e && e.stack || e));
+        }
       });
-      refreshStatus();
+      // Re-query node state after invocation.
+      for (var k2 in rightClient.markers) {
+        var e2 = rightClient.markers[k2];
+        if (e2.node) {
+          L('  after: ' + k2 + ' visible=' + e2.node.visible +
+            ' x=' + e2.node.x + ' y=' + e2.node.y +
+            ' rotation=' + e2.node.rotation);
+        }
+      }
+      setStatus(log.join('\n'));
     };
   }
 
