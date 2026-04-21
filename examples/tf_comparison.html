@@ -65,10 +65,13 @@
         var parent = t.header && t.header.frame_id;
         var child = t.child_frame_id;
         if (parent === fixedFrame && child) {
-          client._dispatch(child, {
+          // Real ROSLIB.TFClient dispatches ROSLIB.Transform instances;
+          // ROSLIB.Pose.applyTransform calls .clone() on the rotation, so
+          // plain {x,y,z,w} would throw. Wrapping here matches the contract.
+          client._dispatch(child, new ROSLIB.Transform({
             translation: t.transform.translation,
             rotation: t.transform.rotation
-          });
+          }));
         }
       }
     }
@@ -196,10 +199,10 @@
       }
       // Invoke each subscriber callback directly with try/catch so any
       // error inside SceneNode._onTF or _applyLatest surfaces.
-      var fakeTf = {
+      var fakeTf = new ROSLIB.Transform({
         translation: { x: 3, y: 2, z: 0 },
         rotation: { x: 0, y: 0, z: 0, w: 1 }
-      };
+      });
       subs.forEach(function(cb, i) {
         try {
           cb(fakeTf);
