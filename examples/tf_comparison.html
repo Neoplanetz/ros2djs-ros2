@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>TFClient Comparison (v1.3)</title>
+<style>
+  body { font-family: sans-serif; margin: 20px; background: #111; color: #eee; }
+  h1 { margin-top: 0; }
+  .row { display: flex; gap: 20px; margin-top: 20px; }
+  .cell { flex: 1; }
+  .cell h2 { margin: 0 0 4px 0; font-size: 16px; }
+  .cell p { margin: 0 0 8px 0; font-size: 13px; color: #aaa; }
+  .viewer { border: 1px solid #333; }
+  code, pre { background: #222; padding: 2px 6px; border-radius: 3px; }
+  pre { padding: 8px; overflow: auto; }
+  ol li { margin: 6px 0; }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/easeljs@1/lib/easeljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+<script src="../build/ros2d.min.js"></script>
+
+<script>
+  function makeViewer(divID) {
+    var viewer = new ROS2D.Viewer({
+      divID: divID,
+      width: 500,
+      height: 400,
+      background: '#222'
+    });
+    viewer.scaleToDimensions(10, 8);
+    viewer.shift(-5, -4);
+    viewer.scene.addChild(new ROS2D.Axis({ size: 0.5 }));
+    return viewer;
+  }
+
+  function init() {
+    var ros = new ROSLIB.Ros({ url: 'ws://localhost:9090' });
+
+    ros.on('connection', function() { console.log('connected'); });
+    ros.on('error', function(e) { console.error('ros error', e); });
+
+    // Shared TFClient. fixedFrame is the canvas's "world" — anything
+    // published in another frame will be transformed into fixedFrame.
+    var tfClient = new ROSLIB.TFClient({
+      ros: ros,
+      fixedFrame: 'map',
+      angularThres: 0.01,
+      transThres: 0.01,
+      rate: 10.0
+    });
+
+    var leftViewer  = makeViewer('left');
+    var rightViewer = makeViewer('right');
+
+    // LEFT: no tfClient. frame_id is ignored. Pose is drawn as-is.
+    new ROS2D.PoseStampedClient({
+      ros: ros,
+      topic: '/pose',
+      rootObject: leftViewer.scene,
+      fillColor: createjs.Graphics.getRGB(255, 120, 120, 0.9),
+      size: 0.5
+    });
+
+    // RIGHT: tfClient injected. The pose is interpreted in the message's
+    // header.frame_id and composed with the TF transform into 'map'.
+    new ROS2D.PoseStampedClient({
+      ros: ros,
+      topic: '/pose',
+      rootObject: rightViewer.scene,
+      tfClient: tfClient,
+      fillColor: createjs.Graphics.getRGB(120, 200, 255, 0.9),
+      size: 0.5
+    });
+  }
+</script>
+</head>
+
+<body onload="init()">
+  <h1>TFClient Comparison — v1.3</h1>
+  <p>Both canvases subscribe to the same <code>/pose</code> topic. The left one ignores <code>header.frame_id</code> (v1.2 behavior). The right one composes the pose with <code>map ← frame_id</code> via TFClient (v1.3 new path).</p>
+
+  <h3>Setup (ROS 2, 3 terminals)</h3>
+  <ol>
+    <li>
+      <b>rosbridge</b>
+      <pre>ros2 launch rosbridge_server rosbridge_websocket_launch.xml</pre>
+    </li>
+    <li>
+      <b>static transform</b> — <code>test_frame</code> lives at (3, 2) in <code>map</code>:
+      <pre>ros2 run tf2_ros static_transform_publisher --x 3 --y 2 --z 0 --roll 0 --pitch 0 --yaw 0 --frame-id map --child-frame-id test_frame</pre>
+    </li>
+    <li>
+      <b>publish a pose</b> at the origin of <code>test_frame</code>:
+      <pre>ros2 topic pub /pose geometry_msgs/msg/PoseStamped "{header: {frame_id: 'test_frame'}, pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}" -r 10</pre>
+    </li>
+  </ol>
+
+  <p><b>Expected:</b> left arrow sits at (0, 0) — frame ignored. Right arrow sits at (3, 2) — TF applied.</p>
+
+  <p><b>Try this next:</b> change <code>--x 3 --y 2</code> to other values in terminal 2 (restart the command). The right canvas follows; the left stays put. Or switch <code>frame_id</code> to <code>map</code> in terminal 3 — both sides agree (identity transform).</p>
+
+  <div class="row">
+    <div class="cell">
+      <h2 style="color:#ff7878">Without tfClient</h2>
+      <p>v1.2 behavior: <code>frame_id</code> ignored; pose drawn verbatim.</p>
+      <div id="left" class="viewer"></div>
+    </div>
+    <div class="cell">
+      <h2 style="color:#78c8ff">With tfClient</h2>
+      <p>v1.3: pose composed with TF transform into <code>fixedFrame: 'map'</code>.</p>
+      <div id="right" class="viewer"></div>
+    </div>
+  </div>
+
+  <h3>Multi-robot scenario</h3>
+  <p>For the multi-robot case that motivated this feature, replace terminal 2 with two static publishers and publish to two topics (or a single <code>/markers</code> MarkerArray mixing <code>robot_0/odom</code> and <code>robot_1/odom</code> frame_ids). Without tfClient they collapse to one spot; with tfClient they separate.</p>
+  <pre>ros2 run tf2_ros static_transform_publisher --x  5 --y 0 --z 0 --roll 0 --pitch 0 --yaw 0 --frame-id map --child-frame-id robot_0/odom
+ros2 run tf2_ros static_transform_publisher --x -5 --y 0 --z 0 --roll 0 --pitch 0 --yaw 0 --frame-id map --child-frame-id robot_1/odom</pre>
+</body>
+</html>
