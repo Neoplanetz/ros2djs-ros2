@@ -1,16 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createFakeRoslib } from '../fakes/fakeRoslib.js';
 import EventEmitter from 'eventemitter3';
 
 const fake = createFakeRoslib();
 
-// Set up globals the source scripts rely on (they use bare globals, not require()).
 globalThis.ROSLIB = fake.ROSLIB;
 
-// Minimal createjs mock with all classes referenced by ImageMap and ImageMapClient.
-// Use function constructors (not ES6 class) so they can be called with .call(this, ...)
-// by the source's prototype-chain wiring.
-function FakeBitmap(_image) {
+function FakeBitmap(image) {
+  this.image = image;
   this.x = 0;
   this.y = 0;
   this.scaleX = 1;
@@ -19,8 +16,18 @@ function FakeBitmap(_image) {
 
 function FakeShape() {}
 
-function FakeContainer() {}
-FakeContainer.prototype.addChild = function() {};
+function FakeContainer() {
+  this.children = [];
+}
+FakeContainer.prototype.addChild = function(child) {
+  this.children.push(child);
+};
+FakeContainer.prototype.removeChild = function(child) {
+  const index = this.children.indexOf(child);
+  if (index >= 0) {
+    this.children.splice(index, 1);
+  }
+};
 
 globalThis.createjs = {
   Bitmap: FakeBitmap,
@@ -29,48 +36,214 @@ globalThis.createjs = {
 };
 
 globalThis.EventEmitter = EventEmitter;
-
-// Stub a minimal ROS2D global the source attaches itself to.
 globalThis.ROS2D = globalThis.ROS2D ?? {};
 
-// Pre-populate ROS2D.ImageMap so ImageMapClient can construct it.
-// ImageMap extends createjs.Bitmap and uses ROSLIB.Pose internally.
 globalThis.ROS2D.ImageMap = function FakeImageMap(options) {
   FakeBitmap.call(this, options.image);
-  var message = options.message;
+  this.message = options.message;
   this.pose = {
-    position: message.origin.position,
-    orientation: message.origin.orientation,
+    position: options.message.origin.position,
+    orientation: options.message.origin.orientation,
   };
-  this.width = message.width;
-  this.height = message.height;
-  if (message.resolution) {
-    this.y = -(this.height * message.resolution);
-    this.scaleX = message.resolution;
-    this.scaleY = message.resolution;
-    this.width *= this.scaleX;
-    this.height *= this.scaleY;
-  }
+  this.width = options.message.width * options.message.resolution;
+  this.height = options.message.height * options.message.resolution;
   this.x += this.pose.position.x;
-  this.y -= this.pose.position.y;
+  this.y = -(options.message.height * options.message.resolution) - this.pose.position.y;
 };
 globalThis.ROS2D.ImageMap.prototype.__proto__ = FakeBitmap.prototype;
 
+const imageSizes = new Map();
+
+function FakeImage() {
+  this.onload = null;
+  this.onerror = null;
+  this.naturalWidth = 0;
+  this.naturalHeight = 0;
+  this.width = 0;
+  this.height = 0;
+}
+
+Object.defineProperty(FakeImage.prototype, 'src', {
+  get() {
+    return this._src;
+  },
+  set(value) {
+    this._src = value;
+    const spec = imageSizes.get(value);
+    setTimeout(() => {
+      if (spec && spec.error) {
+        if (this.onerror) {
+          this.onerror(new Error('image load failed'));
+        }
+        return;
+      }
+      const width = spec ? spec.width : 10;
+      const height = spec ? spec.height : 5;
+      this.width = width;
+      this.height = height;
+      this.naturalWidth = width;
+      this.naturalHeight = height;
+      if (this.onload) {
+        this.onload();
+      }
+    }, 0);
+  },
+});
+
+globalThis.Image = FakeImage;
+
 await import('../../src/maps/ImageMapClient.js');
 
-describe('ImageMapClient (baseline, v1 API)', () => {
+function once(emitter, eventName) {
+  return new Promise((resolve) => emitter.once(eventName, resolve));
+}
+
+describe('ImageMapClient', () => {
   beforeEach(() => {
     fake.topics.length = 0;
+    imageSizes.clear();
+    globalThis.fetch = vi.fn();
   });
 
-  it('adds the image map to rootObject on construction', () => {
-    const rootObject = { addChild: vi.fn() };
-    new globalThis.ROS2D.ImageMapClient({
-      ros: new fake.ROSLIB.Ros(),
-      rootObject,
-      topic: '/map_metadata',
-      image: 'http://example/map.png',
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete globalThis.fetch;
+  });
+
+  it('loads map metadata from yaml and resolves the image relative to the yaml URL', async () => {
+    globalThis.fetch.mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(
+        'image: map.pgm\n' +
+        'resolution: 0.05\n' +
+        'origin: [-1.5, 2.25, 0.0]\n' +
+        'negate: 0\n' +
+        'occupied_thresh: 0.65\n' +
+        'free_thresh: 0.196\n'
+      ),
     });
-    expect(rootObject.addChild).toHaveBeenCalledOnce();
+    imageSizes.set('http://localhost:3000/assets/maps/map.pgm', { width: 8, height: 6 });
+    document.body.innerHTML = '<div id="map"></div>';
+    const rootObject = new FakeContainer();
+    const client = new globalThis.ROS2D.ImageMapClient({
+      yaml: '/assets/maps/map.yaml',
+      rootObject,
+    });
+
+    await once(client, 'change');
+
+    expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:3000/assets/maps/map.yaml');
+    expect(client.image).toBe('http://localhost:3000/assets/maps/map.pgm');
+    expect(client.metadata.image).toBe('http://localhost:3000/assets/maps/map.pgm');
+    expect(client.metadata.resolution).toBe(0.05);
+    expect(client.metadata.origin.position.x).toBe(-1.5);
+    expect(client.metadata.origin.position.y).toBe(2.25);
+    expect(client.metadata.negate).toBe(0);
+    expect(client.metadata.occupied_thresh).toBe(0.65);
+    expect(client.metadata.free_thresh).toBe(0.196);
+    expect(client.currentImage.message.width).toBe(8);
+    expect(client.currentImage.message.height).toBe(6);
+    expect(rootObject.children).toContain(client.currentImage);
+  });
+
+  it('emits error when the yaml is missing a required field', async () => {
+    globalThis.fetch.mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(
+        'resolution: 0.05\n' +
+        'origin: [0.0, 0.0, 0.0]\n'
+      ),
+    });
+    const client = new globalThis.ROS2D.ImageMapClient({
+      yaml: '/assets/maps/map.yaml',
+      rootObject: new FakeContainer(),
+    });
+
+    const error = await once(client, 'error');
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toMatch(/missing required "image"/);
+  });
+
+  it('emits error when the yaml fetch fails', async () => {
+    globalThis.fetch.mockResolvedValue({
+      ok: false,
+      text: () => Promise.resolve(''),
+    });
+    const client = new globalThis.ROS2D.ImageMapClient({
+      yaml: '/assets/maps/map.yaml',
+      rootObject: new FakeContainer(),
+    });
+
+    const error = await once(client, 'error');
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toMatch(/failed to load YAML/);
+  });
+
+  it('falls back to direct metadata options and emits change after the image loads', async () => {
+    imageSizes.set('http://example.com/map.png', { width: 20, height: 10 });
+    const rootObject = new FakeContainer();
+    const client = new globalThis.ROS2D.ImageMapClient({
+      ros: new fake.ROSLIB.Ros(),
+      topic: '/ignored',
+      image: 'http://example.com/map.png',
+      width: 40,
+      height: 30,
+      resolution: 0.1,
+      position: { x: 1, y: -2, z: 0 },
+      orientation: { x: 0, y: 0, z: 0, w: 1 },
+      negate: 1,
+      occupied_thresh: 0.7,
+      free_thresh: 0.2,
+      rootObject,
+    });
+
+    await once(client, 'change');
+
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(client.metadata.image).toBe('http://example.com/map.png');
+    expect(client.metadata.resolution).toBe(0.1);
+    expect(client.metadata.origin.position.x).toBe(1);
+    expect(client.metadata.origin.position.y).toBe(-2);
+    expect(client.metadata.negate).toBe(1);
+    expect(client.metadata.occupied_thresh).toBe(0.7);
+    expect(client.metadata.free_thresh).toBe(0.2);
+    expect(client.currentImage.message.width).toBe(40);
+    expect(client.currentImage.message.height).toBe(30);
+    expect(rootObject.children).toContain(client.currentImage);
+  });
+
+  it('emits error when the image asset cannot be loaded', async () => {
+    globalThis.fetch.mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(
+        'image: map.pgm\n' +
+        'resolution: 0.05\n' +
+        'origin: [0.0, 0.0, 0.0]\n'
+      ),
+    });
+    imageSizes.set('http://localhost:3000/assets/maps/map.pgm', { error: true });
+    const client = new globalThis.ROS2D.ImageMapClient({
+      yaml: '/assets/maps/map.yaml',
+      rootObject: new FakeContainer(),
+    });
+
+    const error = await once(client, 'error');
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toMatch(/failed to load image asset/);
+  });
+
+  it('emits error when neither yaml nor complete direct metadata is provided', async () => {
+    const client = new globalThis.ROS2D.ImageMapClient({
+      image: 'http://example.com/map.png',
+      rootObject: new FakeContainer(),
+    });
+
+    const error = await once(client, 'error');
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toMatch(/expected either options.yaml or legacy image metadata/);
   });
 });
