@@ -94,14 +94,30 @@ Supported marker types in the v1 implementation:
 
 `MESH_RESOURCE` (10) is not representable in 2D and is skipped with a console warning. `frame_id` / TF lookup is intentionally not performed in v1 — markers render in the `rootObject`'s coordinate frame, matching the convention used by `OccupancyGridClient`. The `tfClient` option slot is reserved for future TF-aware support.
 
-A runnable example lives at [`examples/markers.html`](./examples/markers.html).
+## React Examples
+
+The legacy static HTML demos have been replaced with a Vite + React example app under [`examples/`](./examples/README.md). The new example studio covers the current API surface:
+
+- `OccupancyGridClient`
+- `ImageMapClient`
+- `MarkerArrayClient`
+- `LaserScanClient`
+- Navigation overlays (`PathClient`, `PoseStampedClient`, `OdometryClient`, `PoseArrayClient`)
+
+Run it with:
+
+```bash
+cd examples
+npm install
+npm run dev
+```
 
 ## Development
 
 ```bash
 npm install
 npm run build      # prebuild (transpile) + rollup + tsc
-npm test           # vitest (48 tests)
+npm test           # vitest
 npm run lint       # eslint via grunt
 ```
 
