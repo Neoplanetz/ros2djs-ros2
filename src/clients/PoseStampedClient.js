@@ -71,6 +71,7 @@ ROS2D.PoseStampedClient = function(options) {
       return;
     }
     if (that.tfClient) {
+      that.marker.visible = true;
       var frame = (message.header && message.header.frame_id) || '';
       if (!that.node) {
         that.node = new ROS2D.SceneNode({

@@ -25,6 +25,10 @@ ROS2D.NavigationImage = function(options) {
 
   createjs.Bitmap.call(this, image);
 
+  var calculateScale = function(_size){
+    return _size / image.width;
+  };
+
   var paintImage = function() {
     var scale = calculateScale(size);
     this.alpha = alpha;
@@ -52,16 +56,12 @@ ROS2D.NavigationImage = function(options) {
           this.scaleY /= SCALE_SIZE;
           growing = (--growCount < 0);
         }
-      });
+      }.bind(this));
     }
   };
 
   image.onload = paintImage.bind(this);
   image.src = image_url;
-
-  var calculateScale = function(_size){
-    return _size / image.width;
-  };
 
 };
 

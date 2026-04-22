@@ -121,6 +121,7 @@ describe('ROS2D.PoseStampedClient', () => {
     expect(client.node.pose.position.y).toBe(2);
     expect(client.marker.x).toBe(0);
     expect(client.marker.y).toBe(0);
+    expect(client.marker.visible).toBe(true);
   });
 
   it('with tfClient: subsequent messages call setPose, not recreate', () => {

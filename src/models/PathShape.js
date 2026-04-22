@@ -21,15 +21,7 @@ ROS2D.PathShape = function(options) {
 	// draw the line
 	this.graphics = new createjs.Graphics();
 
-	if (path !== null && typeof path !== 'undefined') {
-		this.graphics.setStrokeStyle(this.strokeSize);
-		this.graphics.beginStroke(this.strokeColor);
-		this.graphics.moveTo(path.poses[0].pose.position.x / this.scaleX, path.poses[0].pose.position.y / -this.scaleY);
-		for (var i=1; i<path.poses.length; ++i) {
-			this.graphics.lineTo(path.poses[i].pose.position.x / this.scaleX, path.poses[i].pose.position.y / -this.scaleY);
-		}
-		this.graphics.endStroke();
-	}
+	this._drawPath(path);
 
 	// create the shape
 	createjs.Shape.call(this, this.graphics);
@@ -42,15 +34,27 @@ ROS2D.PathShape = function(options) {
  */
 ROS2D.PathShape.prototype.setPath = function(path) {
 	this.graphics.clear();
-	if (path !== null && typeof path !== 'undefined') {
-		this.graphics.setStrokeStyle(this.strokeSize);
-		this.graphics.beginStroke(this.strokeColor);
-		this.graphics.moveTo(path.poses[0].pose.position.x / this.scaleX, path.poses[0].pose.position.y / -this.scaleY);
-		for (var i=1; i<path.poses.length; ++i) {
-			this.graphics.lineTo(path.poses[i].pose.position.x / this.scaleX, path.poses[i].pose.position.y / -this.scaleY);
-		}
-		this.graphics.endStroke();
+	this._drawPath(path);
+};
+
+/**
+ * Draw the given nav_msgs/Path if it contains at least one pose.
+ *
+ * @private
+ * @param path of type nav_msgs/Path
+ */
+ROS2D.PathShape.prototype._drawPath = function(path) {
+	var poses = path && path.poses;
+	if (!poses || poses.length === 0) {
+		return;
 	}
+	this.graphics.setStrokeStyle(this.strokeSize);
+	this.graphics.beginStroke(this.strokeColor);
+	this.graphics.moveTo(poses[0].pose.position.x / this.scaleX, poses[0].pose.position.y / -this.scaleY);
+	for (var i=1; i<poses.length; ++i) {
+		this.graphics.lineTo(poses[i].pose.position.x / this.scaleX, poses[i].pose.position.y / -this.scaleY);
+	}
+	this.graphics.endStroke();
 };
 
 ROS2D.PathShape.prototype.__proto__ = createjs.Shape.prototype;

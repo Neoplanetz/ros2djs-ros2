@@ -110,6 +110,26 @@ describe('PathShape (baseline)', () => {
     expect(shape.graphics.commands.length).toBe(firstCount);
   });
 
+  it('setPath with an empty poses array does not throw and leaves graphics empty', () => {
+    const shape = new globalThis.ROS2D.PathShape({ strokeSize: 0.1, strokeColor: 'red' });
+    expect(() => shape.setPath({
+      header: { frame_id: 'map' },
+      poses: [],
+    })).not.toThrow();
+    expect(shape.graphics.commands).toEqual([]);
+  });
+
+  it('constructor accepts an initial empty path without throwing', () => {
+    expect(() => new globalThis.ROS2D.PathShape({
+      strokeSize: 0.1,
+      strokeColor: 'red',
+      path: {
+        header: { frame_id: 'map' },
+        poses: [],
+      },
+    })).not.toThrow();
+  });
+
   it('inherits from createjs.Shape prototype', () => {
     const shape = new globalThis.ROS2D.PathShape({ strokeSize: 0.1, strokeColor: 'red' });
     expect(shape instanceof FakeShape).toBe(true);

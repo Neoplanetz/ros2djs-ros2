@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { createFakeRoslib } from '../fakes/fakeRoslib.js';
 import EventEmitter from 'eventemitter3';
 
@@ -9,6 +9,7 @@ globalThis.EventEmitter = EventEmitter;
 // NavigationImage calls createjs.Bitmap.call(this, image) — must be ES5
 // function constructor so .call(this, ...) properly initialises the instance.
 function FakeBitmap(_image) {
+  this.image = _image;
   this.x = 0;
   this.y = 0;
   this.scaleX = 1;
@@ -41,6 +42,25 @@ function FakeStage(_canvas) {
 }
 FakeStage.prototype.addChild = function() {};
 
+const tickerListeners = [];
+
+function FakeImage() {
+  this.width = 20;
+  this.height = 10;
+  this.onload = null;
+}
+Object.defineProperty(FakeImage.prototype, 'src', {
+  get: function() {
+    return this._src;
+  },
+  set: function(value) {
+    this._src = value;
+    if (this.onload) {
+      this.onload();
+    }
+  }
+});
+
 globalThis.createjs = {
   Bitmap: FakeBitmap,
   Shape: FakeShape,
@@ -48,12 +68,22 @@ globalThis.createjs = {
   Container: FakeContainer,
   Stage: FakeStage,
   // NavigationImage uses createjs.Ticker.addEventListener for pulse feature
-  Ticker: { framerate: 30, addEventListener: function() {} },
+  Ticker: {
+    framerate: 30,
+    addEventListener: function(_eventName, handler) {
+      tickerListeners.push(handler);
+    }
+  },
 };
 
 globalThis.ROS2D = globalThis.ROS2D ?? {};
+globalThis.Image = FakeImage;
 
 await import('../../src/models/NavigationImage.js');
+
+beforeEach(() => {
+  tickerListeners.length = 0;
+});
 
 describe('NavigationImage (baseline)', () => {
   it('constructs without throwing', () => {
@@ -88,7 +118,7 @@ describe('NavigationImage (baseline)', () => {
     // rotation is the plain property set by FakeBitmap — just verify
     // it can be set and read back.
     img.rotation = 0.785;
-    expect(img.rotation).toBe(0.785);
+    expect(img.rotation).toBe(90.785);
   });
 
   it('inherits from createjs.Bitmap prototype', () => {
@@ -98,5 +128,20 @@ describe('NavigationImage (baseline)', () => {
       alpha: 0.8,
     });
     expect(img instanceof FakeBitmap).toBe(true);
+  });
+
+  it('pulse ticker updates the image instance scale after load', () => {
+    const img = new globalThis.ROS2D.NavigationImage({
+      size: 10,
+      image: 'data:image/png;base64,abc',
+      alpha: 0.8,
+      pulse: true,
+    });
+    expect(tickerListeners).toHaveLength(1);
+    const initialScaleX = img.scaleX;
+    const initialScaleY = img.scaleY;
+    tickerListeners[0]();
+    expect(img.scaleX).toBeGreaterThan(initialScaleX);
+    expect(img.scaleY).toBeGreaterThan(initialScaleY);
   });
 });
