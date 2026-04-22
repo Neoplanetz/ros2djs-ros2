@@ -26577,7 +26577,7 @@ var createjsExports = requireCreatejs();
 
 // import * as createjs from 'createjs-module';
 
-var REVISION = '1.2.1';
+var REVISION = '1.3.0';
 
 // convert the given global Stage coordinates to ROS coordinates
 createjsExports.Stage.prototype.globalToRos = function(x, y) {
@@ -27018,44 +27018,259 @@ var EventEmitter = /*@__PURE__*/getDefaultExportFromCjs(eventemitter3Exports);
 
 var ImageMapClient = /*@__PURE__*/(function (EventEmitter) {
   function ImageMapClient(options) {
-    var this$1$1 = this;
-
     EventEmitter.call(this);
     options = options || {};
-    options.ros;
-    var width = options.width;
-    var height = options.height;
-    var resolution = options.resolution;
-    var position = options.position || { x: 0, y: 0, z: 0 };
-    var orientation = options.orientation || { x: 0, y: 0, z: 0, w: 1 };
-    var origin = { position: position, orientation: orientation };
-    this.image = options.image;
+    this.yaml = options.yaml || null;
+    this.image = options.image || null;
     this.rootObject = options.rootObject || new createjsExports.Container();
-
-    // create an empty shape to start with
     this.currentImage = new createjsExports.Shape();
+    this.metadata = null;
+    this._currentImageAttached = false;
 
-    // create message object
-    var message = {
-      width: width,
-      height: height,
-      resolution: resolution,
-      origin: origin
-    };
-
-    // create image map
-    this.currentImage = new ImageMap({
-      message: message,
-      image: this.image
-    });
-    this.rootObject.addChild(this.currentImage);
-    // Emit the 'change' event asynchronously to ensure listeners are registered
-    setTimeout(function () { this$1$1.emit('change'); }, 0);
+    if (this.yaml) {
+      this._loadFromYaml(this.yaml);
+    } else if (this._hasDirectMetadata(options)) {
+      this._loadFromDirectOptions(options);
+    } else {
+      this._emitAsync('error', new Error(
+        'ImageMapClient: expected either options.yaml or legacy image metadata'
+      ));
+    }
   }
 
   if ( EventEmitter ) ImageMapClient.__proto__ = EventEmitter;
   ImageMapClient.prototype = Object.create( EventEmitter && EventEmitter.prototype );
   ImageMapClient.prototype.constructor = ImageMapClient;
+  ImageMapClient.prototype._hasDirectMetadata = function _hasDirectMetadata (options) {
+    return !!(options &&
+      options.image &&
+      typeof options.resolution === 'number' &&
+      typeof options.width === 'number' &&
+      typeof options.height === 'number');
+  };
+  ImageMapClient.prototype._emitAsync = function _emitAsync (eventName, payload) {
+    var that = this;
+    setTimeout(function() {
+      that.emit(eventName, payload);
+    }, 0);
+  };
+  ImageMapClient.prototype._loadFromDirectOptions = function _loadFromDirectOptions (options) {
+    var that = this;
+    var metadata = this._metadataFromDirectOptions(options);
+    this.image = metadata.image;
+    this.metadata = metadata;
+    this._loadImage(metadata.image, function(image) {
+      that._applyImageMap(metadata, image);
+    }, function(error) {
+      that._emitAsync('error', error);
+    });
+  };
+  ImageMapClient.prototype._loadFromYaml = function _loadFromYaml (yamlUrl) {
+    var that = this;
+    if (typeof fetch !== 'function') {
+      this._emitAsync('error', new Error(
+        'ImageMapClient: fetch is required to load map YAML assets'
+      ));
+      return;
+    }
+
+    fetch(this._resolveUrl(yamlUrl))
+      .then(function(response) {
+        if (!response || response.ok === false) {
+          throw new Error(
+            'ImageMapClient: failed to load YAML from ' + yamlUrl
+          );
+        }
+        return response.text();
+      })
+      .then(function(text) {
+        var metadata = that._parseMapYaml(text, yamlUrl);
+        that.image = metadata.image;
+        that.metadata = metadata;
+        that._loadImage(metadata.image, function(image) {
+          that._applyImageMap(metadata, image);
+        }, function(error) {
+          that._emitAsync('error', error);
+        });
+      })
+      .catch(function(error) {
+        that._emitAsync('error', error);
+      });
+  };
+  ImageMapClient.prototype._loadImage = function _loadImage (imageUrl, onLoad, onError) {
+    if (typeof Image !== 'function') {
+      onError(new Error(
+        'ImageMapClient: Image constructor is required to load map assets'
+      ));
+      return;
+    }
+
+    var image = new Image();
+    image.onload = function() {
+      onLoad(image);
+    };
+    image.onerror = function() {
+      onError(new Error(
+        'ImageMapClient: failed to load image asset ' + imageUrl
+      ));
+    };
+    image.src = imageUrl;
+  };
+  ImageMapClient.prototype._applyImageMap = function _applyImageMap (metadata, image) {
+    var width = (typeof metadata.width === 'number') ? metadata.width : (image.naturalWidth || image.width);
+    var height = (typeof metadata.height === 'number') ? metadata.height : (image.naturalHeight || image.height);
+    var message = {
+      width: width,
+      height: height,
+      resolution: metadata.resolution,
+      origin: metadata.origin
+    };
+    var nextImage = new ImageMap({
+      message: message,
+      image: image
+    });
+    this._replaceCurrentImage(nextImage);
+    this._emitAsync('change');
+  };
+  ImageMapClient.prototype._replaceCurrentImage = function _replaceCurrentImage (nextImage) {
+    var previousImage = this.currentImage;
+    if (this._currentImageAttached &&
+        this.rootObject &&
+        typeof this.rootObject.removeChild === 'function') {
+      this.rootObject.removeChild(previousImage);
+    }
+    this.currentImage = nextImage;
+    if (this.rootObject && typeof this.rootObject.addChild === 'function') {
+      this.rootObject.addChild(nextImage);
+      this._currentImageAttached = true;
+    }
+  };
+  ImageMapClient.prototype._metadataFromDirectOptions = function _metadataFromDirectOptions (options) {
+    return {
+      image: options.image,
+      width: options.width,
+      height: options.height,
+      resolution: options.resolution,
+      origin: {
+        position: options.position || { x: 0, y: 0, z: 0 },
+        orientation: options.orientation || { x: 0, y: 0, z: 0, w: 1 }
+      },
+      negate: (typeof options.negate !== 'undefined') ? options.negate : null,
+      occupied_thresh: (typeof options.occupied_thresh !== 'undefined')
+        ? options.occupied_thresh
+        : null,
+      free_thresh: (typeof options.free_thresh !== 'undefined')
+        ? options.free_thresh
+        : null
+    };
+  };
+  ImageMapClient.prototype._parseMapYaml = function _parseMapYaml (text, yamlUrl) {
+    var fields = {};
+    var lines = (text || '').split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].replace(/#.*$/, '').trim();
+      if (!line) {
+        continue;
+      }
+      var separator = line.indexOf(':');
+      if (separator < 0) {
+        continue;
+      }
+      var key = line.substring(0, separator).trim();
+      var rawValue = line.substring(separator + 1).trim();
+      if (key === 'origin') {
+        fields.origin = this._parseOrigin(rawValue);
+      } else {
+        fields[key] = this._parseScalar(rawValue);
+      }
+    }
+
+    if (!fields.image) {
+      throw new Error('ImageMapClient: map YAML is missing required "image"');
+    }
+    if (typeof fields.resolution !== 'number' || isNaN(fields.resolution)) {
+      throw new Error('ImageMapClient: map YAML is missing numeric "resolution"');
+    }
+    if (!fields.origin) {
+      throw new Error('ImageMapClient: map YAML is missing required "origin"');
+    }
+
+    return {
+      image: this._resolveUrl(fields.image, yamlUrl),
+      resolution: fields.resolution,
+      origin: {
+        position: {
+          x: fields.origin[0],
+          y: fields.origin[1],
+          z: 0
+        },
+        orientation: this._quaternionFromTheta(fields.origin[2])
+      },
+      negate: (typeof fields.negate !== 'undefined') ? fields.negate : null,
+      occupied_thresh: (typeof fields.occupied_thresh !== 'undefined')
+        ? fields.occupied_thresh
+        : null,
+      free_thresh: (typeof fields.free_thresh !== 'undefined')
+        ? fields.free_thresh
+        : null
+    };
+  };
+  ImageMapClient.prototype._parseOrigin = function _parseOrigin (value) {
+    var match = /^\[\s*([^\]]+)\s*\]$/.exec(value);
+    if (!match) {
+      throw new Error('ImageMapClient: expected origin in [x, y, theta] form');
+    }
+    var parts = match[1].split(',');
+    if (parts.length !== 3) {
+      throw new Error('ImageMapClient: expected origin in [x, y, theta] form');
+    }
+    var origin = [];
+    for (var i = 0; i < parts.length; i++) {
+      var parsed = parseFloat(parts[i].trim());
+      if (isNaN(parsed)) {
+        throw new Error('ImageMapClient: origin contains a non-numeric value');
+      }
+      origin.push(parsed);
+    }
+    return origin;
+  };
+  ImageMapClient.prototype._parseScalar = function _parseScalar (value) {
+    if (!value) {
+      return '';
+    }
+    var quoted = /^(['"])(.*)\1$/.exec(value);
+    if (quoted) {
+      return quoted[2];
+    }
+    if (value === 'true') {
+      return true;
+    }
+    if (value === 'false') {
+      return false;
+    }
+    if (/^[+-]?\d+(\.\d+)?$/.test(value)) {
+      return parseFloat(value);
+    }
+    return value;
+  };
+  ImageMapClient.prototype._quaternionFromTheta = function _quaternionFromTheta (theta) {
+    var halfTheta = theta / 2;
+    return {
+      x: 0,
+      y: 0,
+      z: Math.sin(halfTheta),
+      w: Math.cos(halfTheta)
+    };
+  };
+  ImageMapClient.prototype._resolveUrl = function _resolveUrl (url, baseUrl) {
+    var fallbackBase = null;
+    if (typeof document !== 'undefined' && document.baseURI) {
+      fallbackBase = document.baseURI;
+    } else if (typeof window !== 'undefined' && window.location && window.location.href) {
+      fallbackBase = window.location.href;
+    }
+    return new URL(url, baseUrl ? this._resolveUrl(baseUrl) : fallbackBase).toString();
+  };
 
   return ImageMapClient;
 }(EventEmitter));
@@ -27188,6 +27403,147 @@ var Grid = /*@__PURE__*/(function (superclass) {
   return Grid;
 }(createjsExports.Shape));
 
+var SceneNode = /*@__PURE__*/(function (superclass) {
+  function SceneNode(options) {
+    superclass.call(this);
+    options = options || {};
+    if (!options.tfClient) {
+      throw new Error('SceneNode: options.tfClient is required');
+    }
+    if (!options.frame_id) {
+      throw new Error('SceneNode: options.frame_id is required');
+    }
+    var that = this;
+
+    this.tfClient = options.tfClient;
+    this.frame_id = options.frame_id;
+    this.pose = options.pose || {
+      position: { x: 0, y: 0, z: 0 },
+      orientation: { x: 0, y: 0, z: 0, w: 1 }
+    };
+
+    // Latest TF cached by our own callback; no reliance on BaseTFClient internals.
+    this._latestTf = null;
+
+    this.visible = false;
+
+    if (options.object) {
+      this.addChild(options.object);
+    }
+
+    this._onTF = function(transform) {
+      if (that._warnTimer) { clearTimeout(that._warnTimer); that._warnTimer = null; }
+      that._latestTf = transform;
+      that._applyLatest();
+      that.visible = true;
+    };
+
+    this.tfClient.subscribe(this.frame_id, this._onTF);
+
+    // One-shot warning timer to surface frame_id typos without log spam.
+    this._warnTimer = setTimeout(function() {
+      if (!that._latestTf) {
+        console.warn(
+          'SceneNode: no TF received yet for frame \'' + that.frame_id +
+          '\' (fixedFrame=' + (that.tfClient.fixedFrame || '?') +
+          '); node will remain hidden until a transform arrives'
+        );
+      }
+      that._warnTimer = null;
+    }, 1000);
+  }
+
+  if ( superclass ) SceneNode.__proto__ = superclass;
+  SceneNode.prototype = Object.create( superclass && superclass.prototype );
+  SceneNode.prototype.constructor = SceneNode;
+  /**
+   * Compose this.pose with this._latestTf and write the result to x/y/rotation.
+   * Y is negated here and here only so children render in ROS coordinates.
+   * @private
+   */
+  SceneNode.prototype._applyLatest = function _applyLatest () {
+    if (!this._latestTf) {
+      return;
+    }
+    // Clone pose to avoid mutating user-supplied objects. ROSLIB.Pose.applyTransform
+    // does the 3D composition; we then map to 2D canvas.
+    var p = new ROSLIB.Pose({
+      position: {
+        x: this.pose.position.x,
+        y: this.pose.position.y,
+        z: this.pose.position.z
+      },
+      orientation: {
+        x: this.pose.orientation.x,
+        y: this.pose.orientation.y,
+        z: this.pose.orientation.z,
+        w: this.pose.orientation.w
+      }
+    });
+    p.applyTransform(this._latestTf);
+    this.x = p.position.x;
+    this.y = -p.position.y;
+    this.rotation = quaternionToGlobalTheta(p.orientation) + 0;
+  };
+  /**
+   * Update the local pose within frame_id. If a TF is already cached the
+   * result is composed and applied immediately; otherwise the node waits
+   * for the next TF callback.
+   *
+   * @param newPose - geometry_msgs/Pose or null (treated as identity)
+   */
+  SceneNode.prototype.setPose = function setPose (newPose) {
+    if (newPose) {
+      this.pose = {
+        position: {
+          x: newPose.position.x, y: newPose.position.y, z: newPose.position.z
+        },
+        orientation: {
+          x: newPose.orientation.x, y: newPose.orientation.y,
+          z: newPose.orientation.z, w: newPose.orientation.w
+        }
+      };
+    } else {
+      this.pose = {
+        position: { x: 0, y: 0, z: 0 },
+        orientation: { x: 0, y: 0, z: 0, w: 1 }
+      };
+    }
+    if (this._latestTf) {
+      this._applyLatest();
+    }
+  };
+  /**
+   * Change the TF frame this node tracks. Unsubscribes from the old frame,
+   * subscribes to the new one, and hides the node until the next TF arrives.
+   * A no-op if newFrameId equals the current frame.
+   *
+   * @param newFrameId - the new TF frame id
+   */
+  SceneNode.prototype.setFrame = function setFrame (newFrameId) {
+    if (newFrameId === this.frame_id) { return; }
+    if (this._onTF) {
+      this.tfClient.unsubscribe(this.frame_id, this._onTF);
+    }
+    this.frame_id = newFrameId;
+    this._latestTf = null;
+    this.visible = false;
+    this.tfClient.subscribe(this.frame_id, this._onTF);
+  };
+  /**
+   * Detach from TF. Safe to call multiple times.
+   */
+  SceneNode.prototype.unsubscribe = function unsubscribe () {
+    if (this._warnTimer) { clearTimeout(this._warnTimer); this._warnTimer = null; }
+    if (this._onTF) {
+      this.tfClient.unsubscribe(this.frame_id, this._onTF);
+      this._onTF = null;
+    }
+  };
+
+  return SceneNode;
+}(createjsExports.Container));
+
 /**
  * @fileOverview
  * @author Russell Toris - rctoris@wpi.edu
@@ -27202,45 +27558,72 @@ var OccupancyGridClient = /*@__PURE__*/(function (EventEmitter) {
     var topic = options.topic || '/map';
     this.continuous = options.continuous;
     this.rootObject = options.rootObject || new createjsExports.Container();
+    this.tfClient = options.tfClient || null;
+    this.node = null;
 
     // current grid that is displayed
     // create an empty shape to start with, so that the order remains correct.
     this.currentGrid = new createjsExports.Shape();
-    this.rootObject.addChild(this.currentGrid);
-    // work-around for a bug in easeljs -- needs a second object to render correctly
-    this.rootObject.addChild(new Grid({size:1}));
+    if (!this.tfClient) {
+      this.rootObject.addChild(this.currentGrid);
+      // work-around for a bug in easeljs -- needs a second object to render correctly
+      this.rootObject.addChild(new Grid({size:1}));
+    }
 
     // subscribe to the topic
-    var rosTopic = new ROSLIB.Topic({
+    this.rosTopic = new ROSLIB.Topic({
       ros : ros,
       name : topic,
       messageType : 'nav_msgs/OccupancyGrid'
       // compression : 'png'
     });
 
-    rosTopic.subscribe(function(message) {
-      // check for an old map
-      var index = null;
-      if (that.currentGrid) {
-        index = that.rootObject.getChildIndex(that.currentGrid);
-        that.rootObject.removeChild(that.currentGrid);
-      }
-
-      that.currentGrid = new OccupancyGrid({
+    this.rosTopic.subscribe(function(message) {
+      var newGrid = new OccupancyGrid({
         message : message
       });
-      if (index !== null) {
-        that.rootObject.addChildAt(that.currentGrid, index);
-      }
-      else {
-        that.rootObject.addChild(that.currentGrid);
+
+      if (that.tfClient) {
+        var frame = (message && message.header && message.header.frame_id) || '';
+        if (!that.node) {
+          that.node = new SceneNode({
+            tfClient: that.tfClient,
+            frame_id: frame,
+            object: newGrid
+          });
+          that.rootObject.addChild(that.node);
+        } else {
+          if (that.node.frame_id !== frame) { that.node.setFrame(frame); }
+          // Replace the lone child under the SceneNode with the new grid.
+          if (that.node.children) {
+            while (that.node.children.length > 0) {
+              that.node.removeChild(that.node.children[0]);
+            }
+          }
+          that.node.addChild(newGrid);
+        }
+        that.currentGrid = newGrid;
+      } else {
+        // check for an old map
+        var index = null;
+        if (that.currentGrid) {
+          index = that.rootObject.getChildIndex(that.currentGrid);
+          that.rootObject.removeChild(that.currentGrid);
+        }
+        that.currentGrid = newGrid;
+        if (index !== null) {
+          that.rootObject.addChildAt(that.currentGrid, index);
+        }
+        else {
+          that.rootObject.addChild(that.currentGrid);
+        }
       }
 
       that.emit('change');
 
       // check if we should unsubscribe
       if (!that.continuous) {
-        rosTopic.unsubscribe();
+        that.rosTopic.unsubscribe();
       }
     });
   }
@@ -27248,6 +27631,17 @@ var OccupancyGridClient = /*@__PURE__*/(function (EventEmitter) {
   if ( EventEmitter ) OccupancyGridClient.__proto__ = EventEmitter;
   OccupancyGridClient.prototype = Object.create( EventEmitter && EventEmitter.prototype );
   OccupancyGridClient.prototype.constructor = OccupancyGridClient;
+  /**
+   * Detach from the map topic and drop any SceneNode wrap.
+   */
+  OccupancyGridClient.prototype.unsubscribe = function unsubscribe () {
+    if (this.rosTopic) { this.rosTopic.unsubscribe(); }
+    if (this.node) {
+      this.node.unsubscribe();
+      this.rootObject.removeChild(this.node);
+      this.node = null;
+    }
+  };
 
   return OccupancyGridClient;
 }(EventEmitter));
@@ -27395,7 +27789,11 @@ var OdometryClient = /*@__PURE__*/(function (EventEmitter) {
       });
     }
     this.marker.visible = false;
-    this.rootObject.addChild(this.marker);
+    this.tfClient = options.tfClient || null;
+    this.node = null;
+    if (!this.tfClient) {
+      this.rootObject.addChild(this.marker);
+    }
 
     this.rosTopic = new ROSLIB.Topic({
       ros: ros,
@@ -27411,10 +27809,27 @@ var OdometryClient = /*@__PURE__*/(function (EventEmitter) {
       if (!pose || !pose.position) {
         return;
       }
-      that.marker.x = pose.position.x;
-      that.marker.y = -pose.position.y;
-      that.marker.rotation = quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
-      that.marker.visible = true;
+      if (that.tfClient) {
+        that.marker.visible = true;
+        var frame = (message.header && message.header.frame_id) || '';
+        if (!that.node) {
+          that.node = new SceneNode({
+            tfClient: that.tfClient,
+            frame_id: frame,
+            pose: pose,
+            object: that.marker
+          });
+          that.rootObject.addChild(that.node);
+        } else {
+          if (that.node.frame_id !== frame) { that.node.setFrame(frame); }
+          that.node.setPose(pose);
+        }
+      } else {
+        that.marker.x = pose.position.x;
+        that.marker.y = -pose.position.y;
+        that.marker.rotation = quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
+        that.marker.visible = true;
+      }
       that.emit('change');
     });
   }
@@ -27429,7 +27844,11 @@ var OdometryClient = /*@__PURE__*/(function (EventEmitter) {
     if (this.rosTopic) {
       this.rosTopic.unsubscribe();
     }
-    if (this.marker && this.rootObject) {
+    if (this.node) {
+      this.node.unsubscribe();
+      this.rootObject.removeChild(this.node);
+      this.node = null;
+    } else if (this.marker && this.rootObject) {
       this.rootObject.removeChild(this.marker);
     }
   };
@@ -27452,15 +27871,7 @@ var PathShape = /*@__PURE__*/(function (superclass) {
   	// draw the line
   	this.graphics = new createjsExports.Graphics();
 
-  	if (path !== null && typeof path !== 'undefined') {
-  		this.graphics.setStrokeStyle(this.strokeSize);
-  		this.graphics.beginStroke(this.strokeColor);
-  		this.graphics.moveTo(path.poses[0].pose.position.x / this.scaleX, path.poses[0].pose.position.y / -this.scaleY);
-  		for (var i=1; i<path.poses.length; ++i) {
-  			this.graphics.lineTo(path.poses[i].pose.position.x / this.scaleX, path.poses[i].pose.position.y / -this.scaleY);
-  		}
-  		this.graphics.endStroke();
-  	}
+  	this._drawPath(path);
 
   	// create the shape
   	superclass.call(this, this.graphics);
@@ -27476,15 +27887,26 @@ var PathShape = /*@__PURE__*/(function (superclass) {
    */
   PathShape.prototype.setPath = function setPath (path) {
   	this.graphics.clear();
-  	if (path !== null && typeof path !== 'undefined') {
-  		this.graphics.setStrokeStyle(this.strokeSize);
-  		this.graphics.beginStroke(this.strokeColor);
-  		this.graphics.moveTo(path.poses[0].pose.position.x / this.scaleX, path.poses[0].pose.position.y / -this.scaleY);
-  		for (var i=1; i<path.poses.length; ++i) {
-  			this.graphics.lineTo(path.poses[i].pose.position.x / this.scaleX, path.poses[i].pose.position.y / -this.scaleY);
-  		}
-  		this.graphics.endStroke();
+  	this._drawPath(path);
+  };
+  /**
+   * Draw the given nav_msgs/Path if it contains at least one pose.
+   *
+   * @private
+   * @param path of type nav_msgs/Path
+   */
+  PathShape.prototype._drawPath = function _drawPath (path) {
+  	var poses = path && path.poses;
+  	if (!poses || poses.length === 0) {
+  		return;
   	}
+  	this.graphics.setStrokeStyle(this.strokeSize);
+  	this.graphics.beginStroke(this.strokeColor);
+  	this.graphics.moveTo(poses[0].pose.position.x / this.scaleX, poses[0].pose.position.y / -this.scaleY);
+  	for (var i=1; i<poses.length; ++i) {
+  		this.graphics.lineTo(poses[i].pose.position.x / this.scaleX, poses[i].pose.position.y / -this.scaleY);
+  	}
+  	this.graphics.endStroke();
   };
 
   return PathShape;
@@ -27498,12 +27920,18 @@ var PathClient = /*@__PURE__*/(function (EventEmitter) {
     var ros = options.ros;
     this.topicName = options.topic || '/path';
     this.rootObject = options.rootObject || new createjsExports.Container();
+    this.tfClient = options.tfClient || null;
 
     this.pathShape = new PathShape({
       strokeSize: options.strokeSize,
       strokeColor: options.strokeColor
     });
-    this.rootObject.addChild(this.pathShape);
+    this.node = null;
+
+    if (!this.tfClient) {
+      // Default path: attach pathShape directly, as in v1.2.
+      this.rootObject.addChild(this.pathShape);
+    }
 
     this.rosTopic = new ROSLIB.Topic({
       ros: ros,
@@ -27512,6 +27940,19 @@ var PathClient = /*@__PURE__*/(function (EventEmitter) {
     });
 
     this.rosTopic.subscribe(function(message) {
+      if (that.tfClient) {
+        var frame = (message && message.header && message.header.frame_id) || '';
+        if (!that.node) {
+          that.node = new SceneNode({
+            tfClient: that.tfClient,
+            frame_id: frame,
+            object: that.pathShape
+          });
+          that.rootObject.addChild(that.node);
+        } else if (that.node.frame_id !== frame) {
+          that.node.setFrame(frame);
+        }
+      }
       that.pathShape.setPath(message);
       that.emit('change');
     });
@@ -27521,13 +27962,18 @@ var PathClient = /*@__PURE__*/(function (EventEmitter) {
   PathClient.prototype = Object.create( EventEmitter && EventEmitter.prototype );
   PathClient.prototype.constructor = PathClient;
   /**
-   * Detach from the topic and remove the managed PathShape from the rootObject.
+   * Detach from the topic and remove the managed PathShape (or SceneNode
+   * wrapper) from the rootObject.
    */
   PathClient.prototype.unsubscribe = function unsubscribe () {
     if (this.rosTopic) {
       this.rosTopic.unsubscribe();
     }
-    if (this.pathShape && this.rootObject) {
+    if (this.node) {
+      this.node.unsubscribe();
+      this.rootObject.removeChild(this.node);
+      this.node = null;
+    } else if (this.pathShape && this.rootObject) {
       this.rootObject.removeChild(this.pathShape);
     }
   };
@@ -27560,7 +28006,12 @@ var PoseStampedClient = /*@__PURE__*/(function (EventEmitter) {
     // Keep the marker hidden until the first message arrives so it does not
     // flash at the origin on startup.
     this.marker.visible = false;
-    this.rootObject.addChild(this.marker);
+    this.tfClient = options.tfClient || null;
+    this.node = null;
+    if (!this.tfClient) {
+      this.rootObject.addChild(this.marker);
+    }
+    // tfClient path: we add the SceneNode on first message instead.
 
     this.rosTopic = new ROSLIB.Topic({
       ros: ros,
@@ -27573,10 +28024,28 @@ var PoseStampedClient = /*@__PURE__*/(function (EventEmitter) {
       if (!pose || !pose.position) {
         return;
       }
-      that.marker.x = pose.position.x;
-      that.marker.y = -pose.position.y;
-      that.marker.rotation = quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
-      that.marker.visible = true;
+      if (that.tfClient) {
+        that.marker.visible = true;
+        var frame = (message.header && message.header.frame_id) || '';
+        if (!that.node) {
+          that.node = new SceneNode({
+            tfClient: that.tfClient,
+            frame_id: frame,
+            pose: pose,
+            object: that.marker
+          });
+          that.rootObject.addChild(that.node);
+        } else {
+          if (that.node.frame_id !== frame) { that.node.setFrame(frame); }
+          that.node.setPose(pose);
+        }
+        // Marker stays at origin; SceneNode positions it.
+      } else {
+        that.marker.x = pose.position.x;
+        that.marker.y = -pose.position.y;
+        that.marker.rotation = quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
+        that.marker.visible = true;
+      }
       that.emit('change');
     });
   }
@@ -27591,7 +28060,11 @@ var PoseStampedClient = /*@__PURE__*/(function (EventEmitter) {
     if (this.rosTopic) {
       this.rosTopic.unsubscribe();
     }
-    if (this.marker && this.rootObject) {
+    if (this.node) {
+      this.node.unsubscribe();
+      this.rootObject.removeChild(this.node);
+      this.node = null;
+    } else if (this.marker && this.rootObject) {
       this.rootObject.removeChild(this.marker);
     }
   };
@@ -27615,10 +28088,15 @@ var PoseArrayClient = /*@__PURE__*/(function (EventEmitter) {
       fillColor: options.fillColor
     };
 
+    this.tfClient = options.tfClient || null;
+    this.node = null;
+
     // A dedicated container so we can wipe it on every message without
     // touching siblings that the caller may have added to rootObject.
     this.container = new createjsExports.Container();
-    this.rootObject.addChild(this.container);
+    if (!this.tfClient) {
+      this.rootObject.addChild(this.container);
+    }
 
     this.rosTopic = new ROSLIB.Topic({
       ros: ros,
@@ -27627,6 +28105,19 @@ var PoseArrayClient = /*@__PURE__*/(function (EventEmitter) {
     });
 
     this.rosTopic.subscribe(function(message) {
+      if (that.tfClient) {
+        var frame = (message && message.header && message.header.frame_id) || '';
+        if (!that.node) {
+          that.node = new SceneNode({
+            tfClient: that.tfClient,
+            frame_id: frame,
+            object: that.container
+          });
+          that.rootObject.addChild(that.node);
+        } else if (that.node.frame_id !== frame) {
+          that.node.setFrame(frame);
+        }
+      }
       that._render(message);
       that.emit('change');
     });
@@ -27642,6 +28133,7 @@ var PoseArrayClient = /*@__PURE__*/(function (EventEmitter) {
   PoseArrayClient.prototype._render = function _render (message) {
     this._clearContainer();
     var poses = (message && message.poses) || [];
+    var negateY = !this.tfClient; // SceneNode handles negation on TF path
     for (var i = 0; i < poses.length; i++) {
       var pose = poses[i];
       if (!pose || !pose.position) {
@@ -27649,7 +28141,7 @@ var PoseArrayClient = /*@__PURE__*/(function (EventEmitter) {
       }
       var arrow = new NavigationArrow(this._arrowOptions);
       arrow.x = pose.position.x;
-      arrow.y = -pose.position.y;
+      arrow.y = negateY ? -pose.position.y : pose.position.y;
       arrow.rotation = quaternionToGlobalTheta(pose.orientation || { x: 0, y: 0, z: 0, w: 1 });
       this.container.addChild(arrow);
     }
@@ -27676,7 +28168,11 @@ var PoseArrayClient = /*@__PURE__*/(function (EventEmitter) {
       this.rosTopic.unsubscribe();
     }
     this._clearContainer();
-    if (this.container && this.rootObject) {
+    if (this.node) {
+      this.node.unsubscribe();
+      this.rootObject.removeChild(this.node);
+      this.node = null;
+    } else if (this.container && this.rootObject) {
       this.rootObject.removeChild(this.container);
     }
   };
@@ -27923,9 +28419,14 @@ var Marker = /*@__PURE__*/(function (superclass) {
         break;
     }
 
-    this.x = pose.position.x;
-    this.y = -pose.position.y;
-    this.rotation = quaternionToGlobalTheta(pose.orientation);
+    // Default true: preserve v1.2 behavior. MarkerArrayClient passes false
+    // when the marker is wrapped in a ROS2D.SceneNode that positions it.
+    var applyPose = options.applyPose !== false;
+    if (applyPose) {
+      this.x = pose.position.x;
+      this.y = -pose.position.y;
+      this.rotation = quaternionToGlobalTheta(pose.orientation);
+    }
   }
 
   if ( superclass ) Marker.__proto__ = superclass;
@@ -27958,13 +28459,9 @@ var MarkerArrayClient = /*@__PURE__*/(function (EventEmitter) {
     var ros = options.ros;
     this.topicName = options.topic || '/markers';
     this.rootObject = options.rootObject || new createjsExports.Container();
-    if (options.tfClient) {
-      console.warn(
-        'MarkerArrayClient: tfClient option is reserved but not yet implemented; frame_id will be ignored.'
-      );
-    }
+    this.tfClient = options.tfClient || null;
 
-    // key = ns + ':' + id  ->  { obj: ROS2D.Marker, timer: timeoutId|null }
+    // key = ns + ':' + id  ->  { obj: child, node: SceneNode|null, timer: timeoutId|null }
     this.markers = {};
 
     this.rosTopic = new ROSLIB.Topic({
@@ -28002,9 +28499,22 @@ var MarkerArrayClient = /*@__PURE__*/(function (EventEmitter) {
     }
     // ADD or MODIFY
     this._removeMarker(key);
-    var obj = new Marker({ message: m });
-    this.rootObject.addChild(obj);
-    var entry = { obj: obj, timer: null };
+    var child;
+    var sceneNode = null;
+    if (this.tfClient) {
+      var shape = new Marker({ message: m, applyPose: false });
+      sceneNode = new SceneNode({
+        tfClient: this.tfClient,
+        frame_id: (m.header && m.header.frame_id) || '',
+        pose: m.pose,
+        object: shape
+      });
+      child = sceneNode;
+    } else {
+      child = new Marker({ message: m });
+    }
+    this.rootObject.addChild(child);
+    var entry = { obj: child, node: sceneNode, timer: null };
     var lifeSec = (m.lifetime && m.lifetime.sec) || 0;
     var lifeNs = (m.lifetime && m.lifetime.nanosec) || 0;
     if (lifeSec > 0 || lifeNs > 0) {
@@ -28028,6 +28538,9 @@ var MarkerArrayClient = /*@__PURE__*/(function (EventEmitter) {
     if (entry.timer) {
       clearTimeout(entry.timer);
     }
+    if (entry.node) {
+      entry.node.unsubscribe();
+    }
     this.rootObject.removeChild(entry.obj);
     delete this.markers[key];
   };
@@ -28037,6 +28550,9 @@ var MarkerArrayClient = /*@__PURE__*/(function (EventEmitter) {
         var entry = this.markers[k];
         if (entry.timer) {
           clearTimeout(entry.timer);
+        }
+        if (entry.node) {
+          entry.node.unsubscribe();
         }
         this.rootObject.removeChild(entry.obj);
       }
@@ -28072,6 +28588,10 @@ var NavigationImage = /*@__PURE__*/(function (superclass) {
 
     superclass.call(this, image);
 
+    var calculateScale = function(_size){
+      return _size / image.width;
+    };
+
     var paintImage = function() {
       var scale = calculateScale(size);
       this.alpha = alpha;
@@ -28099,16 +28619,12 @@ var NavigationImage = /*@__PURE__*/(function (superclass) {
             this.scaleY /= SCALE_SIZE;
             growing = (--growCount < 0);
           }
-        });
+        }.bind(this));
       }
     };
 
     image.onload = paintImage.bind(this);
     image.src = image_url;
-
-    var calculateScale = function(_size){
-      return _size / image.width;
-    };
 
   }
 
@@ -28790,4 +29306,4 @@ var GridLines = /*@__PURE__*/(function (superclass) {
   return GridLines;
 }(createjsExports.Shape));
 
-export { ArrowShape, Axis, Grid, GridLines, ImageMap, ImageMapClient, Marker, MarkerArrayClient, NavigationArrow, NavigationImage, OccupancyGrid, OccupancyGridClient, OccupancyGridSrvClient, OdometryClient, PanView, PathClient, PathShape, PolygonMarker, PoseArrayClient, PoseStampedClient, REVISION, RotateView, TraceShape, Viewer, ZoomView, quaternionToGlobalTheta };
+export { ArrowShape, Axis, Grid, GridLines, ImageMap, ImageMapClient, Marker, MarkerArrayClient, NavigationArrow, NavigationImage, OccupancyGrid, OccupancyGridClient, OccupancyGridSrvClient, OdometryClient, PanView, PathClient, PathShape, PolygonMarker, PoseArrayClient, PoseStampedClient, REVISION, RotateView, SceneNode, TraceShape, Viewer, ZoomView, quaternionToGlobalTheta };

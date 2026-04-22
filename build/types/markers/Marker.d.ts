@@ -19,9 +19,13 @@ export class Marker extends createjs.Container {
      * @constructor
      * @param {Object} options
      * @param {Object} options.message - a visualization_msgs/Marker message
+     * @param {boolean} [options.applyPose=true] - when false the marker does not
+     *   set its own x/y/rotation; the caller (typically ROS2D.SceneNode)
+     *   positions the marker externally
      */
     constructor(options: {
         message: any;
+        applyPose?: boolean;
     });
     x: any;
     /**

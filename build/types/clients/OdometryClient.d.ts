@@ -30,6 +30,8 @@ export class OdometryClient extends EventEmitter<string | symbol, any> {
     topicName: any;
     rootObject: any;
     marker: any;
+    tfClient: any;
+    node: any;
     rosTopic: ROSLIB.Topic<unknown>;
     /**
      * Detach from the topic and remove the managed marker from the rootObject.

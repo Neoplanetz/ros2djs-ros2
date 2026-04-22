@@ -23,3 +23,4 @@ export * from "./visualization/ZoomView";
 export * from "./visualization/RotateView";
 export * from "./visualization/Axis";
 export * from "./visualization/GridLines";
+export * from "./visualization/SceneNode";

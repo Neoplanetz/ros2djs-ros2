@@ -31,6 +31,8 @@ export class PoseArrayClient extends EventEmitter<string | symbol, any> {
         strokeColor: any;
         fillColor: any;
     };
+    tfClient: any;
+    node: any;
     container: createjs.Container;
     rosTopic: ROSLIB.Topic<unknown>;
     /**

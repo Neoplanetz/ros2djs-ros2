@@ -21,5 +21,12 @@ export class PathShape extends createjs.Shape {
      * @param path of type nav_msgs/Path
      */
     setPath(path: any): void;
+    /**
+     * Draw the given nav_msgs/Path if it contains at least one pose.
+     *
+     * @private
+     * @param path of type nav_msgs/Path
+     */
+    private _drawPath;
 }
 import * as createjs from 'createjs-module';
