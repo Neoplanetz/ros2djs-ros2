@@ -25,6 +25,11 @@
  *   * pulse (optional) - if the marker should "pulse" over time
  */
 ROS2D.NavigationArrow = function(options) {
+  // Parent init goes first so the transpiled ES6 class form emits
+  // super() before any `this`/`that = this` reference. In ES5 this is
+  // equivalent to calling it just before createjs.Shape.call(this, graphics)
+  // below — the final this.graphics assignment overwrites the default.
+  createjs.Shape.call(this);
   var that = this;
   options = options || {};
   var size = options.size || 10;
@@ -63,8 +68,8 @@ ROS2D.NavigationArrow = function(options) {
     graphics.endStroke();
   }
 
-  // create the shape
-  createjs.Shape.call(this, graphics);
+  // create the shape (parent ctor already invoked at top)
+  this.graphics = graphics;
 
   // check if we are pulsing
   if (pulse) {

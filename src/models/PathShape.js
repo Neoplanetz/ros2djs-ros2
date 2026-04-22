@@ -13,6 +13,8 @@
  *   * strokeColor (optional) - the createjs color for the stroke
  */
 ROS2D.PathShape = function(options) {
+	// Parent init first; transpiled ES6 class requires super() before `this`.
+	createjs.Shape.call(this);
 	options = options || {};
 	var path = options.path;
 	this.strokeSize = options.strokeSize || 3;
@@ -22,9 +24,6 @@ ROS2D.PathShape = function(options) {
 	this.graphics = new createjs.Graphics();
 
 	this._drawPath(path);
-
-	// create the shape
-	createjs.Shape.call(this, this.graphics);
 };
 
 /**

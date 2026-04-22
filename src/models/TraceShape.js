@@ -15,6 +15,8 @@
  *   * minDist (optional) - the minimal distance between poses to use the pose for drawing (default 0.05)
  */
 ROS2D.TraceShape = function(options) {
+	// Parent init first; transpiled ES6 class requires super() before `this`.
+	createjs.Shape.call(this);
 //	var that = this;
 	options = options || {};
 	var pose = options.pose;
@@ -41,9 +43,6 @@ ROS2D.TraceShape = function(options) {
 	// Initial draw so strokeSize/strokeColor are respected consistently
 	// with the redraw() path (single source of truth for stroke settings).
 	this._render();
-
-	// Create the shape
-	createjs.Shape.call(this, this.graphics);
 };
 
 /**

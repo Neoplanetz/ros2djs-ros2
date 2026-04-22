@@ -16,6 +16,8 @@
  * @param {Bool} [options.pulse] - If the marker should "pulse" over time
  */
 ROS2D.ArrowShape = function(options) {
+	// Parent init first; transpiled ES6 class requires super() before `this`.
+	createjs.Shape.call(this);
 	var that = this;
 	options = options || {};
 	var size = options.size || 10;
@@ -43,8 +45,8 @@ ROS2D.ArrowShape = function(options) {
 	graphics.endFill();
 	graphics.endStroke();
 
-	// create the shape
-	createjs.Shape.call(this, graphics);
+	// create the shape (parent ctor already invoked at top)
+	this.graphics = graphics;
 
 	// check if we are pulsing
 	if (pulse) {
