@@ -27725,6 +27725,11 @@ var OccupancyGridSrvClient = /*@__PURE__*/(function (EventEmitter) {
 
 var NavigationArrow = /*@__PURE__*/(function (superclass) {
   function NavigationArrow(options) {
+    // Parent init goes first so the transpiled ES6 class form emits
+    // super() before any `this`/`that = this` reference. In ES5 this is
+    // equivalent to calling it just before createjs.Shape.call(this, graphics)
+    // below — the final this.graphics assignment overwrites the default.
+    superclass.call(this);
     var that = this;
     options = options || {};
     var size = options.size || 10;
@@ -27763,8 +27768,8 @@ var NavigationArrow = /*@__PURE__*/(function (superclass) {
       graphics.endStroke();
     }
 
-    // create the shape
-    superclass.call(this, graphics);
+    // create the shape (parent ctor already invoked at top)
+    this.graphics = graphics;
 
     // check if we are pulsing
     if (pulse) {
@@ -27887,6 +27892,8 @@ var OdometryClient = /*@__PURE__*/(function (EventEmitter) {
 
 var PathShape = /*@__PURE__*/(function (superclass) {
   function PathShape(options) {
+  	// Parent init first; transpiled ES6 class requires super() before `this`.
+  	superclass.call(this);
   	options = options || {};
   	var path = options.path;
   	this.strokeSize = options.strokeSize || 3;
@@ -27896,9 +27903,6 @@ var PathShape = /*@__PURE__*/(function (superclass) {
   	this.graphics = new createjsExports.Graphics();
 
   	this._drawPath(path);
-
-  	// create the shape
-  	superclass.call(this, this.graphics);
   }
 
   if ( superclass ) PathShape.__proto__ = superclass;
@@ -28206,11 +28210,169 @@ var PoseArrayClient = /*@__PURE__*/(function (EventEmitter) {
 
 /**
  * @fileOverview
+ * Draws a sensor_msgs/LaserScan as 2D hit points in ROS2D.
+ */
+
+var LaserScanShape = /*@__PURE__*/(function (superclass) {
+  function LaserScanShape(options) {
+    // Parent init first; transpiled ES6 class requires super() before `this`.
+    superclass.call(this);
+    options = options || {};
+    this.pointSize = (typeof options.pointSize === 'number') ? options.pointSize : 0.03;
+    this.pointColor = options.pointColor || createjsExports.Graphics.getRGB(255, 0, 0);
+    this.sampleStep = (typeof options.sampleStep === 'number' && options.sampleStep > 0)
+      ? Math.floor(options.sampleStep)
+      : 1;
+    this.maxRange = (typeof options.maxRange === 'number') ? options.maxRange : null;
+    this.negateY = options.negateY !== false;
+
+    this.graphics = new createjsExports.Graphics();
+  }
+
+  if ( superclass ) LaserScanShape.__proto__ = superclass;
+  LaserScanShape.prototype = Object.create( superclass && superclass.prototype );
+  LaserScanShape.prototype.constructor = LaserScanShape;
+  /**
+   * Redraw the current scan as points.
+   *
+   * @param message of type sensor_msgs/LaserScan
+   */
+  LaserScanShape.prototype.setScan = function setScan (message) {
+    this.graphics.clear();
+
+    var ranges = message && message.ranges;
+    if (!ranges || ranges.length === 0) {
+      return;
+    }
+
+    var lowerBound = (typeof message.range_min === 'number') ? message.range_min : 0;
+    var upperBound = (typeof message.range_max === 'number') ? message.range_max : Infinity;
+    if (typeof this.maxRange === 'number') {
+      upperBound = Math.min(upperBound, this.maxRange);
+    }
+    var radius = this.pointSize / 2;
+
+    this.graphics.beginFill(this.pointColor);
+    for (var i = 0; i < ranges.length; i += this.sampleStep) {
+      var range = ranges[i];
+      if (!this._isValidRange(range, lowerBound, upperBound)) {
+        continue;
+      }
+      var angle = message.angle_min + i * message.angle_increment;
+      var x = range * Math.cos(angle);
+      var y = range * Math.sin(angle);
+      this.graphics.drawCircle(x, this.negateY ? -y : y, radius);
+    }
+  };
+  /**
+   * Check whether a scan range should be rendered.
+   *
+   * @private
+   * @param range - scan range
+   * @param lowerBound - minimum accepted range
+   * @param upperBound - maximum accepted range
+   * @returns {boolean} true when the range should be drawn
+   */
+  LaserScanShape.prototype._isValidRange = function _isValidRange (range, lowerBound, upperBound) {
+    return typeof range === 'number' &&
+      isFinite(range) &&
+      range >= lowerBound &&
+      range <= upperBound;
+  };
+
+  return LaserScanShape;
+}(createjsExports.Shape));
+
+var LaserScanClient = /*@__PURE__*/(function (EventEmitter) {
+  function LaserScanClient(options) {
+    EventEmitter.call(this);
+    options = options || {};
+    var that = this;
+    var ros = options.ros;
+
+    this.topicName = options.topic || '/scan';
+    this.rootObject = options.rootObject || new createjsExports.Container();
+    this.tfClient = options.tfClient || null;
+    this.node = null;
+
+    this.scanShape = new LaserScanShape({
+      pointSize: options.pointSize,
+      pointColor: options.pointColor,
+      sampleStep: options.sampleStep,
+      maxRange: options.maxRange,
+      negateY: !this.tfClient
+    });
+
+    if (!this.tfClient) {
+      this.rootObject.addChild(this.scanShape);
+    }
+
+    this.rosTopic = new ROSLIB__namespace.Topic({
+      ros: ros,
+      name: this.topicName,
+      messageType: 'sensor_msgs/LaserScan'
+    });
+
+    this.rosTopic.subscribe(function(message) {
+      if (!message || !message.ranges || typeof message.angle_min !== 'number' ||
+          typeof message.angle_increment !== 'number') {
+        return;
+      }
+
+      if (that.tfClient) {
+        var frame = message.header && message.header.frame_id;
+        if (!frame) {
+          return;
+        }
+        if (!that.node) {
+          that.node = new SceneNode({
+            tfClient: that.tfClient,
+            frame_id: frame,
+            object: that.scanShape
+          });
+          that.rootObject.addChild(that.node);
+        } else if (that.node.frame_id !== frame) {
+          that.node.setFrame(frame);
+        }
+      }
+
+      that.scanShape.setScan(message);
+      that.emit('change');
+    });
+  }
+
+  if ( EventEmitter ) LaserScanClient.__proto__ = EventEmitter;
+  LaserScanClient.prototype = Object.create( EventEmitter && EventEmitter.prototype );
+  LaserScanClient.prototype.constructor = LaserScanClient;
+  /**
+   * Detach from the topic and remove the managed shape (or SceneNode
+   * wrapper) from the rootObject.
+   */
+  LaserScanClient.prototype.unsubscribe = function unsubscribe () {
+    if (this.rosTopic) {
+      this.rosTopic.unsubscribe();
+    }
+    if (this.node) {
+      this.node.unsubscribe();
+      this.rootObject.removeChild(this.node);
+      this.node = null;
+    } else if (this.scanShape && this.rootObject) {
+      this.rootObject.removeChild(this.scanShape);
+    }
+  };
+
+  return LaserScanClient;
+}(EventEmitter));
+
+/**
+ * @fileOverview
  * @author Bart van Vliet - bart@dobots.nl
  */
 
 var ArrowShape = /*@__PURE__*/(function (superclass) {
   function ArrowShape(options) {
+  	// Parent init first; transpiled ES6 class requires super() before `this`.
+  	superclass.call(this);
   	var that = this;
   	options = options || {};
   	var size = options.size || 10;
@@ -28238,8 +28400,8 @@ var ArrowShape = /*@__PURE__*/(function (superclass) {
   	graphics.endFill();
   	graphics.endStroke();
 
-  	// create the shape
-  	superclass.call(this, graphics);
+  	// create the shape (parent ctor already invoked at top)
+  	this.graphics = graphics;
 
   	// check if we are pulsing
   	if (pulse) {
@@ -28930,6 +29092,8 @@ var PolygonMarker = /*@__PURE__*/(function (superclass) {
 
 var TraceShape = /*@__PURE__*/(function (superclass) {
   function TraceShape(options) {
+  	// Parent init first; transpiled ES6 class requires super() before `this`.
+  	superclass.call(this);
   //	var that = this;
   	options = options || {};
   	var pose = options.pose;
@@ -28956,9 +29120,6 @@ var TraceShape = /*@__PURE__*/(function (superclass) {
   	// Initial draw so strokeSize/strokeColor are respected consistently
   	// with the redraw() path (single source of truth for stroke settings).
   	this._render();
-
-  	// Create the shape
-  	superclass.call(this, this.graphics);
   }
 
   if ( superclass ) TraceShape.__proto__ = superclass;
@@ -29336,6 +29497,8 @@ exports.Grid = Grid;
 exports.GridLines = GridLines;
 exports.ImageMap = ImageMap;
 exports.ImageMapClient = ImageMapClient;
+exports.LaserScanClient = LaserScanClient;
+exports.LaserScanShape = LaserScanShape;
 exports.Marker = Marker;
 exports.MarkerArrayClient = MarkerArrayClient;
 exports.NavigationArrow = NavigationArrow;
