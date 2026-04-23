@@ -1,78 +1,107 @@
-## Change Log
+# Changelog
 
-### 0.10.0 (2022/05/03 13:47 +00:00)
-- [#88](https://github.com/RobotWebTools/ros2djs/pull/88) Bump ansi-regex from 5.0.0 to 5.0.1 (#88) (@dependabot[bot])
-- [#89](https://github.com/RobotWebTools/ros2djs/pull/89) Fix Docs (#89) (@MatthijsBurgh)
-- [#87](https://github.com/RobotWebTools/ros2djs/pull/87) Bump grunt from 1.5.1 to 1.5.2 (#87) (@dependabot[bot])
-- [#86](https://github.com/RobotWebTools/ros2djs/pull/86) Bump async from 2.6.3 to 2.6.4 (#86) (@dependabot[bot])
-- [#85](https://github.com/RobotWebTools/ros2djs/pull/85) Bump grunt-contrib-uglify from 5.1.0 to 5.2.1 (#85) (@dependabot[bot])
-- [#84](https://github.com/RobotWebTools/ros2djs/pull/84) Bump grunt from 1.4.1 to 1.5.1 (#84) (@dependabot[bot])
-- [#83](https://github.com/RobotWebTools/ros2djs/pull/83) Bump grunt-contrib-concat from 2.0.0 to 2.1.0 (#83) (@dependabot[bot])
-- [#82](https://github.com/RobotWebTools/ros2djs/pull/82) Bump minimist from 1.2.5 to 1.2.6 (#82) (@dependabot[bot])
-- [#81](https://github.com/RobotWebTools/ros2djs/pull/81) Bump grunt-contrib-uglify from 5.0.1 to 5.1.0 (#81) (@dependabot[bot])
-- [#80](https://github.com/RobotWebTools/ros2djs/pull/80) Bump karma from 6.3.16 to 6.3.17 (#80) (@dependabot[bot])
-- [#79](https://github.com/RobotWebTools/ros2djs/pull/79) Bump grunt-contrib-jshint from 3.1.1 to 3.2.0 (#79) (@dependabot[bot])
-- [#78](https://github.com/RobotWebTools/ros2djs/pull/78) Bump karma from 6.3.15 to 6.3.16 (#78) (@dependabot[bot])
-- [#77](https://github.com/RobotWebTools/ros2djs/pull/77) Bump path-parse from 1.0.6 to 1.0.7 (#77) (@dependabot[bot])
-- [#76](https://github.com/RobotWebTools/ros2djs/pull/76) Bump follow-redirects from 1.13.3 to 1.14.8 (#76) (@dependabot[bot])
-- [#75](https://github.com/RobotWebTools/ros2djs/pull/75) Bump karma from 6.3.12 to 6.3.15 (#75) (@dependabot[bot])
-- [#74](https://github.com/RobotWebTools/ros2djs/pull/74) Bump karma from 6.3.11 to 6.3.12 (#74) (@dependabot[bot])
-- [#73](https://github.com/RobotWebTools/ros2djs/pull/73) Bump karma from 6.3.10 to 6.3.11 (#73) (@dependabot[bot])
-- [#72](https://github.com/RobotWebTools/ros2djs/pull/72) Bump karma from 6.3.9 to 6.3.10 (#72) (@dependabot[bot])
-- [#71](https://github.com/RobotWebTools/ros2djs/pull/71) Bump karma from 6.3.8 to 6.3.9 (#71) (@dependabot[bot])
-- [#70](https://github.com/RobotWebTools/ros2djs/pull/70) Bump karma from 6.3.6 to 6.3.8 (#70) (@dependabot[bot])
-- [#69](https://github.com/RobotWebTools/ros2djs/pull/69) Bump karma from 6.3.5 to 6.3.6 (#69) (@dependabot[bot])
-- [#68](https://github.com/RobotWebTools/ros2djs/pull/68) Bump karma from 6.3.4 to 6.3.5 (#68) (@dependabot[bot])
-- [#67](https://github.com/RobotWebTools/ros2djs/pull/67) Bump grunt-contrib-concat from 1.0.1 to 2.0.0 (#67) (@dependabot[bot])
-- [#66](https://github.com/RobotWebTools/ros2djs/pull/66) Bump grunt-contrib-jshint from 3.0.0 to 3.1.1 (#66) (@dependabot[bot])
-- [#65](https://github.com/RobotWebTools/ros2djs/pull/65) (actions) also run on PR (#65) (@MatthijsBurgh)
-- [#62](https://github.com/RobotWebTools/ros2djs/pull/62) Bump karma from 6.3.3 to 6.3.4 (#62) (@dependabot[bot])
-- [#63](https://github.com/RobotWebTools/ros2djs/pull/63) (actions) auto update build (#63) (@MatthijsBurgh)
-- [#60](https://github.com/RobotWebTools/ros2djs/pull/60) Bump karma from 6.3.2 to 6.3.3 (#60) (@dependabot[bot])
-- [#58](https://github.com/RobotWebTools/ros2djs/pull/58) Bump grunt from 1.4.0 to 1.4.1 (#58) (@dependabot[bot])
-- [#59](https://github.com/RobotWebTools/ros2djs/pull/59) Bump grunt-cli from 1.4.2 to 1.4.3 (#59) (@dependabot[bot])
-- [#56](https://github.com/RobotWebTools/ros2djs/pull/56) Bump grunt-karma from 4.0.0 to 4.0.2 (#56) (@dependabot[bot])
-- [#55](https://github.com/RobotWebTools/ros2djs/pull/55) Relax dep requirements (#55) (@MatthijsBurgh)
-- [#50](https://github.com/RobotWebTools/ros2djs/pull/50) Bump grunt-contrib-jshint from 1.1.0 to 3.0.0 (#50) (@dependabot[bot])
-- [#52](https://github.com/RobotWebTools/ros2djs/pull/52) Bump grunt-contrib-uglify from 1.0.2 to 5.0.1 (#52) (@dependabot[bot])
-- [#49](https://github.com/RobotWebTools/ros2djs/pull/49) Bump karma from 1.7.1 to 6.3.2 (#49) (@dependabot[bot])
-- [#51](https://github.com/RobotWebTools/ros2djs/pull/51) Bump grunt-karma from 2.0.0 to 4.0.0 (#51) (@dependabot[bot])
-- [#53](https://github.com/RobotWebTools/ros2djs/pull/53) Bump grunt-contrib-clean from 1.1.0 to 2.0.0 (#53) (@dependabot[bot])
-- [#54](https://github.com/RobotWebTools/ros2djs/pull/54) GH Actions (#54) (@MatthijsBurgh)
-- [#48](https://github.com/RobotWebTools/ros2djs/pull/48) Add dependabot (#48) (@MatthijsBurgh)
-- [#35](https://github.com/RobotWebTools/ros2djs/pull/35) update dev dependencies (#35) (@jihoonl)
+All notable changes to this project are documented here.
+The project follows [Semantic Versioning](https://semver.org/).
 
-### 0.9.0 (2018/01/04 06:37 +00:00)
-- [#34](https://github.com/RobotWebTools/ros2djs/pull/34) 0.9.0 release (#34) (@jihoonl)
+## [1.3.2] — 2026-04-23
 
-### 0.8.0 (2017/12/06 11:04 +00:00)
-- [#33](https://github.com/RobotWebTools/ros2djs/pull/33) Mark 0.8.0, create PR based changelog. Add deprecation sign in bowers.json (#33) (@jihoonl)
-- [#31](https://github.com/RobotWebTools/ros2djs/pull/31) Update Viewer.js (@DLu)
-- [#30](https://github.com/RobotWebTools/ros2djs/pull/30) Fix continuous map updates (@guilhermelawless)
+### Changed
 
-### 0.7.0 (2015/08/18 18:36 +00:00)
-- [#28](https://github.com/RobotWebTools/ros2djs/pull/28) Added Navigation Image (@haas85)
+- **`RotateView`** reworked to pivot around the drag-start point and map
+  horizontal drag distance to degrees linearly via a new
+  `options.degreesPerPixel` (default `0.35`). The previous
+  atan2-from-stage-origin model produced unpredictable rotation once
+  the viewer had been shifted or zoomed. The undocumented
+  `startAngle` internal field was removed; public signatures
+  (`startRotate`, `rotate`) are unchanged.
 
-### 0.6.0 (2015/03/09 14:08 +00:00)
-- [#26](https://github.com/RobotWebTools/ros2djs/pull/26) add bower support (@aisch)
-- [#24](https://github.com/RobotWebTools/ros2djs/pull/24) Update CHANGELOG.md (@rbonghi)
+### Added
 
-### 0.3.0 (2014/07/28 15:21 +00:00)
-- [#21](https://github.com/RobotWebTools/ros2djs/pull/21) added panning, zooming, extra models, fixed rotations (@vliedel)
-- [#19](https://github.com/RobotWebTools/ros2djs/pull/19) Grid.js static grid (@rbonghi)
+- **`ImageMapClient` PGM support** — `.pgm` URLs are now decoded in the
+  browser (P5 binary and P2 ASCII, 8/16-bit), so a `map_server`-style
+  `map.yaml + map.pgm` pair works without pre-converting to PNG.
+- **Example studio helpers** (`examples/src/lib/ros2dHelpers.js`):
+  `enableViewerMouseControls` (left-drag pan / right-drag rotate /
+  wheel zoom) and `createInitialMapViewFitter` (one-shot auto-fit that
+  preserves user pan/zoom on subsequent map messages).
 
-### r2 (2013/05/07 17:32 +00:00)
-- [#18](https://github.com/RobotWebTools/ros2djs/pull/18) r2 release (@rctoris, @jihoonl)
-- [#17](https://github.com/RobotWebTools/ros2djs/pull/17) r3-devel started (@rctoris)
-- [#16](https://github.com/RobotWebTools/ros2djs/pull/16) map now sets correct pose (@rctoris)
-- [#15](https://github.com/RobotWebTools/ros2djs/pull/15) Cleanup for travis build (@rctoris)
-- [#14](https://github.com/RobotWebTools/ros2djs/pull/14) OccupancyGridSrvClient which uses service to receive a static map (@jihoonl)
-- [#12](https://github.com/RobotWebTools/ros2djs/pull/12) r2-devel started (@rctoris)
-- [#11](https://github.com/RobotWebTools/ros2djs/pull/11) r1 release (@rctoris)
+## [1.3.1] — 2026-04-22
 
-### r1 (2013/04/15 21:31 +00:00)
-- [#10](https://github.com/RobotWebTools/ros2djs/pull/10) Grunt (@rctoris)
-- [#8](https://github.com/RobotWebTools/ros2djs/pull/8) +1 (@rctoris)
-- [#7](https://github.com/RobotWebTools/ros2djs/pull/7) rebuilt ros2djs (@jihoonl)
-- [#6](https://github.com/RobotWebTools/ros2djs/pull/6) Scene improvements and OccupancyGrids (@rctoris)
-- [#1](https://github.com/RobotWebTools/ros2djs/pull/1) initial import of existing libraries (@rctoris)
+Patch release over 1.3.0: the 1.3.0 bundle crashed in the browser
+because several ES6-class constructors referenced `this` before their
+`super()` call. Fixing the transpile/source ordering unblocks every
+Shape-extending renderer.
+
+### Fixed
+
+- **Shape-extending classes** (`NavigationArrow`, `ArrowShape`,
+  `PathShape`, `TraceShape`, and the new `LaserScanShape`) now hoist
+  the parent-constructor call to the top of the constructor so the
+  transpiled ES6 class emits `super()` before any `this` reference.
+  Before this, loading `ros2d.min.js` from a CDN crashed with
+  "Must call super constructor in derived class" on first instantiation.
+- **`PoseStampedClient` / `OdometryClient`** set `marker.visible = true`
+  on the `tfClient` path; previously the wrapped arrow inherited its
+  startup `visible = false` and stayed hidden forever inside an
+  otherwise-visible `SceneNode`.
+- **`NavigationImage`** pulse animation binds `this` inside the Ticker
+  callback (was writing `scaleX` / `scaleY` onto the Ticker object).
+- **`PathShape`** guards an empty `poses` array that previously threw
+  at `path.poses[0]`.
+
+### Added
+
+- **`ImageMapClient` YAML loader** — `options.yaml` fetches a
+  `map_server`-style YAML, parses `image` / `resolution` / `origin`,
+  and loads the referenced asset. Legacy
+  `{image, width, height, ...}` inputs keep working.
+- **`LaserScanClient` + `LaserScanShape`** replace the dead ros3djs
+  `LaserScan` / `Points` ports that never ran in 2D. The client
+  subscribes to `sensor_msgs/LaserScan` and wires the shape into
+  `rootObject` with optional `tfClient`.
+- **Vite + React example studio** (`examples/`) — a single-page app
+  covering every client: OccupancyGrid, ImageMap, MarkerArray,
+  LaserScan, and the navigation overlay stack.
+
+### Changed
+
+- `PathShape` draw logic deduplicated into a private `_drawPath`
+  helper; constructor and `setPath` now share the same path.
+
+## [1.3.0] — 2026-04-21
+
+Introduces **TF-aware rendering** across every client via a new
+`ROS2D.SceneNode`. Every client gains an optional `tfClient` slot;
+when omitted, behavior is byte-for-byte identical to 1.2.x.
+
+### Added
+
+- **`ROS2D.SceneNode`** — a `createjs.Container` subclass that
+  subscribes to a `ROSLIB.TFClient` (or `ROSLIB.ROS2TFClient`) on
+  construction, stays hidden until the first transform arrives, and
+  owns the single Y-negate on the TF render path. Methods:
+  `setPose(pose)`, `setFrame(frameId)`, `unsubscribe()`. Emits a
+  one-shot `console.warn` after 1 s without a transform to surface
+  `frame_id` typos.
+- **`tfClient` option** on `MarkerArrayClient`, `PathClient`,
+  `PoseStampedClient`, `OdometryClient`, `PoseArrayClient`, and
+  `OccupancyGridClient`. Each marker / overlay is wrapped in its own
+  `SceneNode` keyed on the message's `header.frame_id`, so
+  multi-robot deployments with mixed frames (e.g. `/robot_0/map`,
+  `/robot_1/odom`) render correctly.
+- **`Marker.applyPose`** option (default `true`). `MarkerArrayClient`
+  passes `false` so the marker sits at the origin while the wrapping
+  `SceneNode` handles positioning.
+- **Multi-frame integration test** — two `SceneNode` instances on
+  different frames remain independent under distinct transforms.
+
+### Compatibility
+
+- No `tfClient` → every client renders exactly as in 1.2.x.
+- Test suite grows from 74 → 130 tests across 16 files.
+
+## Earlier history
+
+Versions prior to 1.3.0 exist only as git tags (`v1.0.0` through
+`v1.2.1`). For context on the pre-fork codebase, see the upstream
+project at [RobotWebTools/ros2djs](https://github.com/RobotWebTools/ros2djs).
