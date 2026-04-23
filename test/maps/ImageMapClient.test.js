@@ -53,6 +53,8 @@ globalThis.ROS2D.ImageMap = function FakeImageMap(options) {
 globalThis.ROS2D.ImageMap.prototype.__proto__ = FakeBitmap.prototype;
 
 const imageSizes = new Map();
+const binaryResponses = new Map();
+let originalCreateElement;
 
 function FakeImage() {
   this.onload = null;
@@ -71,7 +73,7 @@ Object.defineProperty(FakeImage.prototype, 'src', {
     this._src = value;
     const spec = imageSizes.get(value);
     setTimeout(() => {
-      if (spec && spec.error) {
+      if ((spec && spec.error) || (!spec && /\.pgm(?:[?#]|$)/i.test(value))) {
         if (this.onerror) {
           this.onerror(new Error('image load failed'));
         }
@@ -102,7 +104,30 @@ describe('ImageMapClient', () => {
   beforeEach(() => {
     fake.topics.length = 0;
     imageSizes.clear();
+    binaryResponses.clear();
     globalThis.fetch = vi.fn();
+    originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tagName) => {
+      if (tagName !== 'canvas') {
+        return originalCreateElement(tagName);
+      }
+      return {
+        width: 0,
+        height: 0,
+        getContext() {
+          return {
+            createImageData(width, height) {
+              return {
+                width,
+                height,
+                data: new Uint8ClampedArray(width * height * 4),
+              };
+            },
+            putImageData() {},
+          };
+        },
+      };
+    });
   });
 
   afterEach(() => {
@@ -111,18 +136,38 @@ describe('ImageMapClient', () => {
   });
 
   it('loads map metadata from yaml and resolves the image relative to the yaml URL', async () => {
-    globalThis.fetch.mockResolvedValue({
-      ok: true,
-      text: () => Promise.resolve(
-        'image: map.pgm\n' +
-        'resolution: 0.05\n' +
-        'origin: [-1.5, 2.25, 0.0]\n' +
-        'negate: 0\n' +
-        'occupied_thresh: 0.65\n' +
-        'free_thresh: 0.196\n'
-      ),
+    binaryResponses.set(
+      'http://localhost:3000/assets/maps/map.pgm',
+      Uint8Array.from(
+        [
+          0x50, 0x35, 0x0a,
+          0x38, 0x20, 0x36, 0x0a,
+          0x32, 0x35, 0x35, 0x0a,
+        ].concat(Array.from({ length: 48 }, (_, index) => index))
+      ).buffer
+    );
+    globalThis.fetch.mockImplementation((url) => {
+      if (url === 'http://localhost:3000/assets/maps/map.yaml') {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(
+            'image: map.pgm\n' +
+            'resolution: 0.05\n' +
+            'origin: [-1.5, 2.25, 0.0]\n' +
+            'negate: 0\n' +
+            'occupied_thresh: 0.65\n' +
+            'free_thresh: 0.196\n'
+          ),
+        });
+      }
+      if (binaryResponses.has(url)) {
+        return Promise.resolve({
+          ok: true,
+          arrayBuffer: () => Promise.resolve(binaryResponses.get(url)),
+        });
+      }
+      return Promise.resolve({ ok: false });
     });
-    imageSizes.set('http://localhost:3000/assets/maps/map.pgm', { width: 8, height: 6 });
     document.body.innerHTML = '<div id="map"></div>';
     const rootObject = new FakeContainer();
     const client = new globalThis.ROS2D.ImageMapClient({
@@ -130,9 +175,17 @@ describe('ImageMapClient', () => {
       rootObject,
     });
 
-    await once(client, 'change');
+    const result = await Promise.race([
+      once(client, 'change').then(() => ({ type: 'change' })),
+      once(client, 'error').then((error) => ({ type: 'error', error })),
+    ]);
+
+    if (result.type === 'error') {
+      throw result.error;
+    }
 
     expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:3000/assets/maps/map.yaml');
+    expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:3000/assets/maps/map.pgm');
     expect(client.image).toBe('http://localhost:3000/assets/maps/map.pgm');
     expect(client.metadata.image).toBe('http://localhost:3000/assets/maps/map.pgm');
     expect(client.metadata.resolution).toBe(0.05);
@@ -215,15 +268,22 @@ describe('ImageMapClient', () => {
   });
 
   it('emits error when the image asset cannot be loaded', async () => {
-    globalThis.fetch.mockResolvedValue({
-      ok: true,
-      text: () => Promise.resolve(
-        'image: map.pgm\n' +
-        'resolution: 0.05\n' +
-        'origin: [0.0, 0.0, 0.0]\n'
-      ),
+    globalThis.fetch.mockImplementation((url) => {
+      if (url === 'http://localhost:3000/assets/maps/map.yaml') {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(
+            'image: map.pgm\n' +
+            'resolution: 0.05\n' +
+            'origin: [0.0, 0.0, 0.0]\n'
+          ),
+        });
+      }
+      return Promise.resolve({
+        ok: false,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      });
     });
-    imageSizes.set('http://localhost:3000/assets/maps/map.pgm', { error: true });
     const client = new globalThis.ROS2D.ImageMapClient({
       yaml: '/assets/maps/map.yaml',
       rootObject: new FakeContainer(),

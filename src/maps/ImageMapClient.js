@@ -103,6 +103,11 @@ ROS2D.ImageMapClient.prototype._loadFromYaml = function(yamlUrl) {
 };
 
 ROS2D.ImageMapClient.prototype._loadImage = function(imageUrl, onLoad, onError) {
+  if (this._isPgmAsset(imageUrl)) {
+    this._loadPgmImage(imageUrl, onLoad, onError);
+    return;
+  }
+
   if (typeof Image !== 'function') {
     onError(new Error(
       'ROS2D.ImageMapClient: Image constructor is required to load map assets'
@@ -120,6 +125,180 @@ ROS2D.ImageMapClient.prototype._loadImage = function(imageUrl, onLoad, onError) 
     ));
   };
   image.src = imageUrl;
+};
+
+ROS2D.ImageMapClient.prototype._isPgmAsset = function(imageUrl) {
+  return /\.pgm(?:[?#]|$)/i.test(imageUrl || '');
+};
+
+ROS2D.ImageMapClient.prototype._loadPgmImage = function(imageUrl, onLoad, onError) {
+  var that = this;
+  if (typeof fetch !== 'function') {
+    onError(new Error(
+      'ROS2D.ImageMapClient: fetch is required to load PGM map assets'
+    ));
+    return;
+  }
+
+  fetch(imageUrl)
+    .then(function(response) {
+      if (!response || response.ok === false) {
+        throw new Error(
+          'ROS2D.ImageMapClient: failed to load image asset ' + imageUrl
+        );
+      }
+      if (!response.arrayBuffer) {
+        throw new Error(
+          'ROS2D.ImageMapClient: arrayBuffer() is required to load PGM map assets'
+        );
+      }
+      return response.arrayBuffer();
+    })
+    .then(function(buffer) {
+      var decoded = that._decodePgm(buffer, imageUrl);
+      onLoad(that._createRasterCanvas(decoded.width, decoded.height, decoded.pixels));
+    })
+    .catch(function(error) {
+      onError(error);
+    });
+};
+
+ROS2D.ImageMapClient.prototype._decodePgm = function(buffer, imageUrl) {
+  var bytes = new Uint8Array(buffer);
+  var offset = 0;
+
+  function isWhitespace(value) {
+    return value === 0x20 || value === 0x09 || value === 0x0a || value === 0x0d;
+  }
+
+  function skipWhitespaceAndComments() {
+    while (offset < bytes.length) {
+      if (isWhitespace(bytes[offset])) {
+        offset++;
+        continue;
+      }
+      if (bytes[offset] === 0x23) {
+        while (offset < bytes.length && bytes[offset] !== 0x0a) {
+          offset++;
+        }
+        continue;
+      }
+      break;
+    }
+  }
+
+  function readToken() {
+    skipWhitespaceAndComments();
+    if (offset >= bytes.length) {
+      throw new Error(
+        'ROS2D.ImageMapClient: unexpected end of PGM data in ' + imageUrl
+      );
+    }
+    var start = offset;
+    while (offset < bytes.length &&
+           !isWhitespace(bytes[offset]) &&
+           bytes[offset] !== 0x23) {
+      offset++;
+    }
+    return String.fromCharCode.apply(null, bytes.slice(start, offset));
+  }
+
+  function parseHeaderInteger(label) {
+    var token = readToken();
+    var parsed = parseInt(token, 10);
+    if (isNaN(parsed)) {
+      throw new Error(
+        'ROS2D.ImageMapClient: invalid PGM ' + label + ' in ' + imageUrl
+      );
+    }
+    return parsed;
+  }
+
+  var magic = readToken();
+  if (magic !== 'P5' && magic !== 'P2') {
+    throw new Error(
+      'ROS2D.ImageMapClient: unsupported PGM format "' + magic + '" in ' + imageUrl
+    );
+  }
+
+  var width = parseHeaderInteger('width');
+  var height = parseHeaderInteger('height');
+  var maxValue = parseHeaderInteger('max value');
+  var pixelCount = width * height;
+  var grayscale = new Uint8ClampedArray(pixelCount);
+  var i;
+
+  if (width <= 0 || height <= 0) {
+    throw new Error(
+      'ROS2D.ImageMapClient: PGM dimensions must be positive in ' + imageUrl
+    );
+  }
+  if (maxValue <= 0 || maxValue > 65535) {
+    throw new Error(
+      'ROS2D.ImageMapClient: unsupported PGM max value in ' + imageUrl
+    );
+  }
+
+  skipWhitespaceAndComments();
+
+  if (magic === 'P5') {
+    var bytesPerSample = maxValue < 256 ? 1 : 2;
+    if ((bytes.length - offset) < (pixelCount * bytesPerSample)) {
+      throw new Error(
+        'ROS2D.ImageMapClient: PGM pixel data is truncated in ' + imageUrl
+      );
+    }
+    for (i = 0; i < pixelCount; i++) {
+      var sample = bytes[offset];
+      if (bytesPerSample === 2) {
+        sample = (sample << 8) | bytes[offset + 1];
+      }
+      offset += bytesPerSample;
+      grayscale[i] = Math.round((sample / maxValue) * 255);
+    }
+  } else {
+    for (i = 0; i < pixelCount; i++) {
+      grayscale[i] = Math.round((parseHeaderInteger('pixel value') / maxValue) * 255);
+    }
+  }
+
+  return {
+    width: width,
+    height: height,
+    pixels: grayscale
+  };
+};
+
+ROS2D.ImageMapClient.prototype._createRasterCanvas = function(width, height, pixels) {
+  if (typeof document === 'undefined' || !document.createElement) {
+    throw new Error(
+      'ROS2D.ImageMapClient: document.createElement is required to render PGM map assets'
+    );
+  }
+
+  var canvas = document.createElement('canvas');
+  var context = canvas.getContext && canvas.getContext('2d');
+  if (!context || !context.createImageData || !context.putImageData) {
+    throw new Error(
+      'ROS2D.ImageMapClient: 2D canvas context is required to render PGM map assets'
+    );
+  }
+
+  canvas.width = width;
+  canvas.height = height;
+
+  var imageData = context.createImageData(width, height);
+  for (var i = 0; i < pixels.length; i++) {
+    var channel = pixels[i];
+    var pixelIndex = i * 4;
+    imageData.data[pixelIndex] = channel;
+    imageData.data[pixelIndex + 1] = channel;
+    imageData.data[pixelIndex + 2] = channel;
+    imageData.data[pixelIndex + 3] = 255;
+  }
+  context.putImageData(imageData, 0, 0);
+
+  return canvas;
 };
 
 ROS2D.ImageMapClient.prototype._applyImageMap = function(metadata, image) {
