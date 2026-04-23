@@ -43,6 +43,30 @@ FakeShape.prototype.scaleY = 1;
 function FakeContainer() {}
 FakeContainer.prototype.addChild = function() {};
 
+function localToStage(stage, localPoint) {
+  const rotation = (stage.rotation || 0) * (Math.PI / 180);
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const scaledX = localPoint.x * stage.scaleX;
+  const scaledY = localPoint.y * stage.scaleY;
+  return {
+    x: stage.x + (cos * scaledX) - (sin * scaledY),
+    y: stage.y + (sin * scaledX) + (cos * scaledY),
+  };
+}
+
+function stageToLocal(stage, stagePoint) {
+  const rotation = (stage.rotation || 0) * (Math.PI / 180);
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const dx = stagePoint.x - stage.x;
+  const dy = stagePoint.y - stage.y;
+  return {
+    x: ((cos * dx) + (sin * dy)) / stage.scaleX,
+    y: ((-sin * dx) + (cos * dy)) / stage.scaleY,
+  };
+}
+
 globalThis.createjs = {
   Stage: FakeStage,
   Ticker: { framerate: 30, addEventListener: function() {} },
@@ -97,5 +121,25 @@ describe('PanZoomRotate views (baseline)', () => {
     v.rotate(0, 1);
     // rotation should be updated (non-zero after a ~90-degree move)
     expect(typeof v.stage.rotation).toBe('number');
+  });
+
+  it('RotateView rotates around the pointer position used to start rotation', () => {
+    const rootObject = new FakeStage();
+    rootObject.x = 120;
+    rootObject.y = 80;
+    rootObject.scaleX = 2;
+    rootObject.scaleY = 2;
+    rootObject.rotation = 15;
+    const pivot = { x: 300, y: 240 };
+    const localPivot = stageToLocal(rootObject, pivot);
+    const v = new globalThis.ROS2D.RotateView({ rootObject });
+
+    v.startRotate(pivot.x, pivot.y);
+    v.rotate(360, 240);
+
+    const nextPivot = localToStage(rootObject, localPivot);
+    expect(rootObject.rotation).not.toBe(15);
+    expect(nextPivot.x).toBeCloseTo(pivot.x, 6);
+    expect(nextPivot.y).toBeCloseTo(pivot.y, 6);
   });
 });

@@ -9,10 +9,12 @@
  * @constructor
  * @param options - object with following keys:
  *   * rootObject (optional) - the root object to apply rotation to
+ *   * degreesPerPixel (optional) - degrees to rotate per horizontal drag pixel
  */
 ROS2D.RotateView = function(options) {
 	options = options || {};
 	this.rootObject = options.rootObject;
+	this.degreesPerPixel = typeof options.degreesPerPixel === 'number' ? options.degreesPerPixel : 0.35;
 
 	// get a handle to the stage
 	if (this.rootObject instanceof createjs.Stage) {
@@ -22,8 +24,40 @@ ROS2D.RotateView = function(options) {
 		this.stage = this.rootObject.getStage();
 	}
 
-	this.startAngle = 0;
-	this.currentRotation = 0;
+	this.startX = 0;
+	this.startY = 0;
+	this.startRotation = this.stage.rotation || 0;
+	this.currentRotation = this.stage.rotation || 0;
+	this.pivotLocal = { x: 0, y: 0 };
+};
+
+ROS2D.RotateView.prototype._stageToLocal = function(stageX, stageY) {
+	var rotation = (this.stage.rotation || 0) * (Math.PI / 180);
+	var cos = Math.cos(rotation);
+	var sin = Math.sin(rotation);
+	var scaleX = this.stage.scaleX || 1;
+	var scaleY = this.stage.scaleY || 1;
+	var dx = stageX - this.stage.x;
+	var dy = stageY - this.stage.y;
+
+	return {
+		x: ((cos * dx) + (sin * dy)) / scaleX,
+		y: ((-sin * dx) + (cos * dy)) / scaleY
+	};
+};
+
+ROS2D.RotateView.prototype._setRotationAroundPivot = function(rotation) {
+	var radians = rotation * (Math.PI / 180);
+	var cos = Math.cos(radians);
+	var sin = Math.sin(radians);
+	var scaleX = this.stage.scaleX || 1;
+	var scaleY = this.stage.scaleY || 1;
+	var scaledPivotX = this.pivotLocal.x * scaleX;
+	var scaledPivotY = this.pivotLocal.y * scaleY;
+
+	this.stage.rotation = rotation;
+	this.stage.x = this.startX - ((cos * scaledPivotX) - (sin * scaledPivotY));
+	this.stage.y = this.startY - ((sin * scaledPivotX) + (cos * scaledPivotY));
 };
 
 /**
@@ -32,8 +66,11 @@ ROS2D.RotateView = function(options) {
  * @param startY - the starting y position
  */
 ROS2D.RotateView.prototype.startRotate = function(startX, startY) {
-	// Calculate initial angle from center of stage
-	this.startAngle = Math.atan2(startY - this.stage.y, startX - this.stage.x);
+	this.startX = startX;
+	this.startY = startY;
+	this.startRotation = this.stage.rotation || 0;
+	this.currentRotation = this.startRotation;
+	this.pivotLocal = this._stageToLocal(startX, startY);
 };
 
 /**
@@ -42,16 +79,7 @@ ROS2D.RotateView.prototype.startRotate = function(startX, startY) {
  * @param curY - the current y position
  */
 ROS2D.RotateView.prototype.rotate = function(curX, curY) {
-	// Calculate current angle from center of stage
-	var currentAngle = Math.atan2(curY - this.stage.y, curX - this.stage.x);
-	
-	// Calculate angle difference and convert to degrees
-	var angleDiff = (currentAngle - this.startAngle) * (180 / Math.PI);
-	
-	// Update rotation
-	this.currentRotation += angleDiff;
-	this.stage.rotation = this.currentRotation;
-	
-	// Update start angle for next rotation
-	this.startAngle = currentAngle;
+	var angleDiff = (curX - this.startX) * this.degreesPerPixel;
+	this.currentRotation = this.startRotation + angleDiff;
+	this._setRotationAroundPivot(this.currentRotation);
 };
