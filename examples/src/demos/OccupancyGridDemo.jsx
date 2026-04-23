@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { OccupancyGridClient } from 'ros2d';
-import { createDemoRoot, fitMapView, removeDemoRoot } from '../lib/ros2dHelpers.js';
+import {
+  addMetricBackdrop,
+  createDemoRoot,
+  createInitialMapViewFitter,
+  removeDemoRoot,
+} from '../lib/ros2dHelpers.js';
 
 export function OccupancyGridDemo({ ros, viewer }) {
   const [draftTopic, setDraftTopic] = useState('/map');
@@ -14,6 +19,9 @@ export function OccupancyGridDemo({ ros, viewer }) {
     }
 
     const root = createDemoRoot(viewer);
+    const overlayRoot = createDemoRoot(viewer);
+    addMetricBackdrop(overlayRoot, { extent: 24, spacing: 1 });
+    const fitInitialMapView = createInitialMapViewFitter(viewer);
     const client = new OccupancyGridClient({
       ros,
       topic: settings.topic,
@@ -22,7 +30,7 @@ export function OccupancyGridDemo({ ros, viewer }) {
     });
 
     const handleChange = () => {
-      fitMapView(viewer, client.currentGrid);
+      fitInitialMapView(client.currentGrid);
       setStatus(`Map ready from ${settings.topic}`);
     };
 
@@ -32,6 +40,7 @@ export function OccupancyGridDemo({ ros, viewer }) {
       client.off('change', handleChange);
       client.unsubscribe();
       removeDemoRoot(viewer, root);
+      removeDemoRoot(viewer, overlayRoot);
     };
   }, [ros, settings, viewer]);
 
@@ -41,8 +50,8 @@ export function OccupancyGridDemo({ ros, viewer }) {
         <p className="eyebrow">Map</p>
         <h3>OccupancyGridClient</h3>
         <p>
-          Subscribe to a live `nav_msgs/OccupancyGrid` topic and automatically fit the
-          viewer whenever the map updates.
+          Subscribe to a live `nav_msgs/OccupancyGrid` topic and fit the viewer
+          when the first map arrives.
         </p>
       </div>
 

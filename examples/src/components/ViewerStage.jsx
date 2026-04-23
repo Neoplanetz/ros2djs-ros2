@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Viewer } from 'ros2d';
+import { enableViewerMouseControls } from '../lib/ros2dHelpers.js';
 
 export function ViewerStage({ setViewer }) {
   const hostRef = useRef(null);
@@ -33,9 +34,11 @@ export function ViewerStage({ setViewer }) {
       height: size.height,
       background: '#f7f4ed',
     });
+    const disableMouseControls = enableViewerMouseControls(viewer);
     setViewerRef.current(viewer);
 
     return () => {
+      disableMouseControls();
       if (hostRef.current) {
         hostRef.current.innerHTML = '';
       }

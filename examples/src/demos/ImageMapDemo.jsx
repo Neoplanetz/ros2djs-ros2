@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ImageMapClient } from 'ros2d';
-import { createDemoRoot, fitMapView, removeDemoRoot } from '../lib/ros2dHelpers.js';
+import { addMetricBackdrop, createDemoRoot, fitMapView, removeDemoRoot } from '../lib/ros2dHelpers.js';
 
 export function ImageMapDemo({ viewer }) {
-  const [draftYaml, setDraftYaml] = useState('/sample-map.yaml');
-  const [yaml, setYaml] = useState('/sample-map.yaml');
+  const [draftYaml, setDraftYaml] = useState('/sample_map.yaml');
+  const [yaml, setYaml] = useState('/sample_map.yaml');
   const [status, setStatus] = useState('Load a map_server-style YAML asset');
 
   useEffect(() => {
@@ -13,6 +13,8 @@ export function ImageMapDemo({ viewer }) {
     }
 
     const root = createDemoRoot(viewer);
+    const overlayRoot = createDemoRoot(viewer);
+    addMetricBackdrop(overlayRoot, { extent: 24, spacing: 1 });
     const client = new ImageMapClient({
       yaml,
       rootObject: root,
@@ -33,6 +35,7 @@ export function ImageMapDemo({ viewer }) {
       client.off('change', handleChange);
       client.off('error', handleError);
       removeDemoRoot(viewer, root);
+      removeDemoRoot(viewer, overlayRoot);
     };
   }, [viewer, yaml]);
 
@@ -43,7 +46,7 @@ export function ImageMapDemo({ viewer }) {
         <h3>ImageMapClient</h3>
         <p>
           Load a `map.yaml` file and the referenced image asset without a ROS topic.
-          The sample uses a bundled SVG map so the demo works immediately.
+          The sample uses a bundled ROS map asset pair so the demo works immediately.
         </p>
       </div>
 
