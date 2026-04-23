@@ -43,3 +43,30 @@ ros2 topic pub /markers visualization_msgs/msg/MarkerArray \
 ```
 
 Open the `MarkerArrayClient` demo, toggle **Use TF** on in the Navigation Overlays demo, and change the static transform's `--x`/`--y` — the overlays follow when TF is enabled and stay put when it is off.
+
+## Smoke test
+
+A Playwright suite under `smoke-test/` drives the five demos against a
+running rosbridge and a `vite preview` build of this app. Useful as a
+regression guard after touching any client or helper in the library.
+
+```bash
+# One-time: install the chromium binary
+npx playwright install chromium
+
+# Build the static preview once (fresh library bundle + example app)
+cd ..
+npm run build
+cd examples
+npm run build
+
+# Run the suite against localhost:4173 and localhost:9090 (rosbridge)
+npx vite preview --port 4173 &
+npm run test:smoke
+```
+
+Screenshots land under `smoke-test/screenshots/` for visual
+inspection; assertions cover: rosbridge handshake, each demo's
+status text flipping to its "ready/rendered/updated" line, the
+canvas having drawn pixels, no `Must call super constructor` regressions,
+and the RotateView right-drag changing canvas content.
