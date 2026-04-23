@@ -25,10 +25,19 @@ jobs:
       run: npm install -g grunt-cli
     - name: Install
       run: npm install
+    - name: Lint
+      run: npm run lint
     - name: Check transpile drift
       run: npm run check:transpile
+    - name: Test
+      run: npm test
     - name: Build
       run: npm run build
+    - name: Build example studio
+      run: |
+        cd examples
+        npm install
+        npm run build
     - uses: stefanzweifel/git-auto-commit-action@v5
       if: ${{ github.event_name == 'push' && endsWith(github.ref, 'develop') && matrix.node_version == 20 }}
       with:
