@@ -45,6 +45,14 @@ export class ImageMapClient extends EventEmitter<string | symbol, any> {
     _loadFromDirectOptions(options: any): void;
     _loadFromYaml(yamlUrl: any): void;
     _loadImage(imageUrl: any, onLoad: any, onError: any): void;
+    _isPgmAsset(imageUrl: any): boolean;
+    _loadPgmImage(imageUrl: any, onLoad: any, onError: any): void;
+    _decodePgm(buffer: any, imageUrl: any): {
+        width: number;
+        height: number;
+        pixels: Uint8ClampedArray<ArrayBuffer>;
+    };
+    _createRasterCanvas(width: any, height: any, pixels: any): HTMLCanvasElement;
     _applyImageMap(metadata: any, image: any): void;
     _replaceCurrentImage(nextImage: any): void;
     _metadataFromDirectOptions(options: any): {

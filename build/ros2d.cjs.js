@@ -27122,6 +27122,11 @@ var ImageMapClient = /*@__PURE__*/(function (EventEmitter) {
       });
   };
   ImageMapClient.prototype._loadImage = function _loadImage (imageUrl, onLoad, onError) {
+    if (this._isPgmAsset(imageUrl)) {
+      this._loadPgmImage(imageUrl, onLoad, onError);
+      return;
+    }
+
     if (typeof Image !== 'function') {
       onError(new Error(
         'ImageMapClient: Image constructor is required to load map assets'
@@ -27139,6 +27144,176 @@ var ImageMapClient = /*@__PURE__*/(function (EventEmitter) {
       ));
     };
     image.src = imageUrl;
+  };
+  ImageMapClient.prototype._isPgmAsset = function _isPgmAsset (imageUrl) {
+    return /\.pgm(?:[?#]|$)/i.test(imageUrl || '');
+  };
+  ImageMapClient.prototype._loadPgmImage = function _loadPgmImage (imageUrl, onLoad, onError) {
+    var that = this;
+    if (typeof fetch !== 'function') {
+      onError(new Error(
+        'ImageMapClient: fetch is required to load PGM map assets'
+      ));
+      return;
+    }
+
+    fetch(imageUrl)
+      .then(function(response) {
+        if (!response || response.ok === false) {
+          throw new Error(
+            'ImageMapClient: failed to load image asset ' + imageUrl
+          );
+        }
+        if (!response.arrayBuffer) {
+          throw new Error(
+            'ImageMapClient: arrayBuffer() is required to load PGM map assets'
+          );
+        }
+        return response.arrayBuffer();
+      })
+      .then(function(buffer) {
+        var decoded = that._decodePgm(buffer, imageUrl);
+        onLoad(that._createRasterCanvas(decoded.width, decoded.height, decoded.pixels));
+      })
+      .catch(function(error) {
+        onError(error);
+      });
+  };
+  ImageMapClient.prototype._decodePgm = function _decodePgm (buffer, imageUrl) {
+    var bytes = new Uint8Array(buffer);
+    var offset = 0;
+
+    function isWhitespace(value) {
+      return value === 0x20 || value === 0x09 || value === 0x0a || value === 0x0d;
+    }
+
+    function skipWhitespaceAndComments() {
+      while (offset < bytes.length) {
+        if (isWhitespace(bytes[offset])) {
+          offset++;
+          continue;
+        }
+        if (bytes[offset] === 0x23) {
+          while (offset < bytes.length && bytes[offset] !== 0x0a) {
+            offset++;
+          }
+          continue;
+        }
+        break;
+      }
+    }
+
+    function readToken() {
+      skipWhitespaceAndComments();
+      if (offset >= bytes.length) {
+        throw new Error(
+          'ImageMapClient: unexpected end of PGM data in ' + imageUrl
+        );
+      }
+      var start = offset;
+      while (offset < bytes.length &&
+             !isWhitespace(bytes[offset]) &&
+             bytes[offset] !== 0x23) {
+        offset++;
+      }
+      return String.fromCharCode.apply(null, bytes.slice(start, offset));
+    }
+
+    function parseHeaderInteger(label) {
+      var token = readToken();
+      var parsed = parseInt(token, 10);
+      if (isNaN(parsed)) {
+        throw new Error(
+          'ImageMapClient: invalid PGM ' + label + ' in ' + imageUrl
+        );
+      }
+      return parsed;
+    }
+
+    var magic = readToken();
+    if (magic !== 'P5' && magic !== 'P2') {
+      throw new Error(
+        'ImageMapClient: unsupported PGM format "' + magic + '" in ' + imageUrl
+      );
+    }
+
+    var width = parseHeaderInteger('width');
+    var height = parseHeaderInteger('height');
+    var maxValue = parseHeaderInteger('max value');
+    var pixelCount = width * height;
+    var grayscale = new Uint8ClampedArray(pixelCount);
+    var i;
+
+    if (width <= 0 || height <= 0) {
+      throw new Error(
+        'ImageMapClient: PGM dimensions must be positive in ' + imageUrl
+      );
+    }
+    if (maxValue <= 0 || maxValue > 65535) {
+      throw new Error(
+        'ImageMapClient: unsupported PGM max value in ' + imageUrl
+      );
+    }
+
+    skipWhitespaceAndComments();
+
+    if (magic === 'P5') {
+      var bytesPerSample = maxValue < 256 ? 1 : 2;
+      if ((bytes.length - offset) < (pixelCount * bytesPerSample)) {
+        throw new Error(
+          'ImageMapClient: PGM pixel data is truncated in ' + imageUrl
+        );
+      }
+      for (i = 0; i < pixelCount; i++) {
+        var sample = bytes[offset];
+        if (bytesPerSample === 2) {
+          sample = (sample << 8) | bytes[offset + 1];
+        }
+        offset += bytesPerSample;
+        grayscale[i] = Math.round((sample / maxValue) * 255);
+      }
+    } else {
+      for (i = 0; i < pixelCount; i++) {
+        grayscale[i] = Math.round((parseHeaderInteger('pixel value') / maxValue) * 255);
+      }
+    }
+
+    return {
+      width: width,
+      height: height,
+      pixels: grayscale
+    };
+  };
+  ImageMapClient.prototype._createRasterCanvas = function _createRasterCanvas (width, height, pixels) {
+    if (typeof document === 'undefined' || !document.createElement) {
+      throw new Error(
+        'ImageMapClient: document.createElement is required to render PGM map assets'
+      );
+    }
+
+    var canvas = document.createElement('canvas');
+    var context = canvas.getContext && canvas.getContext('2d');
+    if (!context || !context.createImageData || !context.putImageData) {
+      throw new Error(
+        'ImageMapClient: 2D canvas context is required to render PGM map assets'
+      );
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+
+    var imageData = context.createImageData(width, height);
+    for (var i = 0; i < pixels.length; i++) {
+      var channel = pixels[i];
+      var pixelIndex = i * 4;
+      imageData.data[pixelIndex] = channel;
+      imageData.data[pixelIndex + 1] = channel;
+      imageData.data[pixelIndex + 2] = channel;
+      imageData.data[pixelIndex + 3] = 255;
+    }
+    context.putImageData(imageData, 0, 0);
+
+    return canvas;
   };
   ImageMapClient.prototype._applyImageMap = function _applyImageMap (metadata, image) {
     var width = (typeof metadata.width === 'number') ? metadata.width : (image.naturalWidth || image.width);
@@ -29360,6 +29535,7 @@ ZoomView.prototype.zoom = function zoom (zoom$1) {
 var RotateView = function RotateView(options) {
   	options = options || {};
   	this.rootObject = options.rootObject;
+  	this.degreesPerPixel = typeof options.degreesPerPixel === 'number' ? options.degreesPerPixel : 0.35;
 
   	// get a handle to the stage
   	if (this.rootObject instanceof createjsExports.Stage) {
@@ -29369,8 +29545,38 @@ var RotateView = function RotateView(options) {
   		this.stage = this.rootObject.getStage();
   	}
 
-  	this.startAngle = 0;
-  	this.currentRotation = 0;
+  	this.startX = 0;
+  	this.startY = 0;
+  	this.startRotation = this.stage.rotation || 0;
+  	this.currentRotation = this.stage.rotation || 0;
+  	this.pivotLocal = { x: 0, y: 0 };
+};
+RotateView.prototype._stageToLocal = function _stageToLocal (stageX, stageY) {
+  	var rotation = (this.stage.rotation || 0) * (Math.PI / 180);
+  	var cos = Math.cos(rotation);
+  	var sin = Math.sin(rotation);
+  	var scaleX = this.stage.scaleX || 1;
+  	var scaleY = this.stage.scaleY || 1;
+  	var dx = stageX - this.stage.x;
+  	var dy = stageY - this.stage.y;
+
+  	return {
+  		x: ((cos * dx) + (sin * dy)) / scaleX,
+  		y: ((-sin * dx) + (cos * dy)) / scaleY
+  	};
+};
+RotateView.prototype._setRotationAroundPivot = function _setRotationAroundPivot (rotation) {
+  	var radians = rotation * (Math.PI / 180);
+  	var cos = Math.cos(radians);
+  	var sin = Math.sin(radians);
+  	var scaleX = this.stage.scaleX || 1;
+  	var scaleY = this.stage.scaleY || 1;
+  	var scaledPivotX = this.pivotLocal.x * scaleX;
+  	var scaledPivotY = this.pivotLocal.y * scaleY;
+
+  	this.stage.rotation = rotation;
+  	this.stage.x = this.startX - ((cos * scaledPivotX) - (sin * scaledPivotY));
+  	this.stage.y = this.startY - ((sin * scaledPivotX) + (cos * scaledPivotY));
 };
 /**
  * Start the rotation
@@ -29378,8 +29584,11 @@ var RotateView = function RotateView(options) {
  * @param startY - the starting y position
  */
 RotateView.prototype.startRotate = function startRotate (startX, startY) {
-  	// Calculate initial angle from center of stage
-  	this.startAngle = Math.atan2(startY - this.stage.y, startX - this.stage.x);
+  	this.startX = startX;
+  	this.startY = startY;
+  	this.startRotation = this.stage.rotation || 0;
+  	this.currentRotation = this.startRotation;
+  	this.pivotLocal = this._stageToLocal(startX, startY);
 };
 /**
  * Rotate the view
@@ -29387,18 +29596,9 @@ RotateView.prototype.startRotate = function startRotate (startX, startY) {
  * @param curY - the current y position
  */
 RotateView.prototype.rotate = function rotate (curX, curY) {
-  	// Calculate current angle from center of stage
-  	var currentAngle = Math.atan2(curY - this.stage.y, curX - this.stage.x);
-  	
-  	// Calculate angle difference and convert to degrees
-  	var angleDiff = (currentAngle - this.startAngle) * (180 / Math.PI);
-  	
-  	// Update rotation
-  	this.currentRotation += angleDiff;
-  	this.stage.rotation = this.currentRotation;
-  	
-  	// Update start angle for next rotation
-  	this.startAngle = currentAngle;
+  	var angleDiff = (curX - this.startX) * this.degreesPerPixel;
+  	this.currentRotation = this.startRotation + angleDiff;
+  	this._setRotationAroundPivot(this.currentRotation);
 };
 
 var Axis = /*@__PURE__*/(function (superclass) {
