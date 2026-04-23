@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ImageMapClient } from 'ros2d';
+import { ImageMapClient } from 'ros2-web2d';
 import { addMetricBackdrop, createDemoRoot, fitMapView, removeDemoRoot } from '../lib/ros2dHelpers.js';
 
 export function ImageMapDemo({ viewer }) {

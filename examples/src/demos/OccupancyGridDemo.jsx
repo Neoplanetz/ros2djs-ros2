@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { OccupancyGridClient } from 'ros2d';
+import { OccupancyGridClient } from 'ros2-web2d';
 import {
   addMetricBackdrop,
   createDemoRoot,

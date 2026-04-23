@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Viewer } from 'ros2d';
+import { Viewer } from 'ros2-web2d';
 import { enableViewerMouseControls } from '../lib/ros2dHelpers.js';
 
 export function ViewerStage({ setViewer }) {

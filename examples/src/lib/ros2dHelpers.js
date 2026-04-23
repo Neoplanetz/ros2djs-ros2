@@ -1,6 +1,6 @@
 import createjs from 'createjs-module';
 import * as ROSLIB from 'roslib';
-import { Axis, GridLines, PanView, RotateView, ZoomView } from 'ros2d';
+import { Axis, GridLines, PanView, RotateView, ZoomView } from 'ros2-web2d';
 
 export function resetViewer(viewer) {
   if (!viewer || !viewer.scene) {

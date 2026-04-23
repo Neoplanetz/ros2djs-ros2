@@ -3,6 +3,19 @@
 All notable changes to this project are documented here.
 The project follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- **Project rebrand**: the npm package and repository are now
+  `ros2-web2d`, signalling the ROS 2-only, browser-based 2D role
+  explicitly. The previous `ros2d` npm name is controlled by the
+  upstream [ros2djs](https://github.com/RobotWebTools/ros2djs) project
+  and has always referred to ROS 2-**Dimensional** (not ROS 2). The
+  new name removes that ambiguity: `ros2-web2d` = **ROS 2** + **web**
+  + **2D**. Import paths change from `'ros2d'` to `'ros2-web2d'`;
+  the `ROS2D` browser global and the public API remain unchanged.
+
 ## [1.3.2] — 2026-04-23
 
 ### Changed

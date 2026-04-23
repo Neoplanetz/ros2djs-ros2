@@ -1,12 +1,18 @@
-# ros2djs-ros2
+# ros2-web2d
 
-A 2D visualization library for ROS 2 web applications. Renders
+A web-based 2D visualization library **for ROS 2**. Renders
 occupancy grids, markers, paths, poses, odometry, and laser scans
 onto an [EaselJS](https://createjs.com/easeljs) stage, driven by
 [roslibjs](https://github.com/RobotWebTools/roslibjs) over rosbridge.
 
+> ROS 2 only. ROS 1 (`roscpp`/`rospy`) installations are not supported —
+> the library targets rosbridge v2 topic types (e.g.
+> `nav_msgs/msg/OccupancyGrid`, `geometry_msgs/msg/PoseStamped`). Use
+> the original [ros2djs](https://github.com/RobotWebTools/ros2djs) if
+> you are on ROS 1.
+
 ```js
-import { Viewer, OccupancyGridClient } from 'ros2d';
+import { Viewer, OccupancyGridClient } from 'ros2-web2d';
 import ROSLIB from 'roslib';
 
 const ros    = new ROSLIB.Ros({ url: 'ws://localhost:9090' });
@@ -46,22 +52,22 @@ new OccupancyGridClient({ ros, rootObject: viewer.scene });
 ## Install
 
 ```bash
-npm install ros2d
+npm install ros2-web2d
 ```
 
 Peer-installed alongside [`roslib`](https://github.com/RobotWebTools/roslibjs)
-(`^1.x` or `^2.x`) and `createjs` / `easeljs`.
+`^2.x` and `createjs` / `easeljs`.
 
 ### ESM
 
 ```js
-import { Viewer, OccupancyGridClient } from 'ros2d';
+import { Viewer, OccupancyGridClient } from 'ros2-web2d';
 ```
 
 ### CommonJS
 
 ```js
-const { Viewer, OccupancyGridClient } = require('ros2d');
+const { Viewer, OccupancyGridClient } = require('ros2-web2d');
 ```
 
 ### Browser IIFE
@@ -69,7 +75,7 @@ const { Viewer, OccupancyGridClient } = require('ros2d');
 ```html
 <script src="https://cdn.jsdelivr.net/npm/easeljs@1/lib/easeljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/roslib@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/ros2d@1.3.2/build/ros2d.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ros2-web2d@1.3.2/build/ros2d.min.js"></script>
 <script>
   const viewer = new ROS2D.Viewer({ divID: 'map', width: 640, height: 480 });
 </script>
@@ -191,12 +197,14 @@ See [CHANGELOG.md](./CHANGELOG.md) for per-release notes.
 
 ## Origin
 
-Originally forked from
-[RobotWebTools/ros2djs](https://github.com/RobotWebTools/ros2djs)
-and now maintained as a separate project focused on ROS 2 + rosbridge
-workflows. The 1.3.x line introduces TF-aware rendering, Vite +
-React examples, and a reworked build pipeline. Pre-1.3 tags exist
-but are not otherwise documented; prior history lives with upstream.
+This project started as a fork of
+[RobotWebTools/ros2djs](https://github.com/RobotWebTools/ros2djs) and
+has since diverged into an independent, **ROS 2-only** library. The
+upstream project predates ROS 2 and has been unmaintained since 2022;
+`ros2-web2d` picks up the 2D-visualization role with a rebuilt TF
+integration, modern Rollup/ES module pipeline, a Vite + React example
+studio, and a test surface spanning 156 vitest cases plus a Playwright
+smoke suite. ROS 1 support is intentionally dropped.
 
 ## License
 

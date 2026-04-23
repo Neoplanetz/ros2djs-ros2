@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MarkerArrayClient } from 'ros2d';
+import { MarkerArrayClient } from 'ros2-web2d';
 import { addMetricBackdrop, centerMetricView, createDemoRoot, removeDemoRoot } from '../lib/ros2dHelpers.js';
 
 export function MarkerArrayDemo({ ros, viewer }) {

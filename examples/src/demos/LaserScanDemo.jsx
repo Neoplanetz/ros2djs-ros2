@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LaserScanClient } from 'ros2d';
+import { LaserScanClient } from 'ros2-web2d';
 import { addMetricBackdrop, centerMetricView, createDemoRoot, createTfClient, disposeTfClient, removeDemoRoot } from '../lib/ros2dHelpers.js';
 
 export function LaserScanDemo({ ros, viewer }) {

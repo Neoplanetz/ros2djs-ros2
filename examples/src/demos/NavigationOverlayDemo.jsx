@@ -6,7 +6,7 @@ import {
   PathClient,
   PoseArrayClient,
   PoseStampedClient,
-} from 'ros2d';
+} from 'ros2-web2d';
 import { addMetricBackdrop, centerMetricView, createDemoRoot, createTfClient, disposeTfClient, removeDemoRoot } from '../lib/ros2dHelpers.js';
 
 export function NavigationOverlayDemo({ ros, viewer }) {
